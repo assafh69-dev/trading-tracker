@@ -870,25 +870,24 @@
 		}
 
 		async function connectToGoogleSheets() {
-			try {
-				showToast('מתחבר ל-Google Sheets...', 'success');
-				
-				// Request access token
-				const tokenClient = google.accounts.oauth2.initTokenClient({
-					client_id: '1040357646874-4sbkrokgjn4dd7a0e9rkrtjt8d9l3vie.apps.googleusercontent.com',
-					scope: SCOPES,
-					callback: (response) => {
-						access_token = response.access_token;
-						findOrCreateSpreadsheet();
-					},
-				});
-				
-				tokenClient.requestAccessToken();
-				
-			} catch (error) {
-				console.error('Error connecting to Google Sheets:', error);
-				showToast('שגיאה בחיבור ל-Google Sheets', 'error');
-			}
+		    try {
+		        showToast('מתחבר ל-Google Sheets...', 'success');
+		        
+		        const tokenClient = google.accounts.oauth2.initTokenClient({
+		            client_id: 'YOUR_CLIENT_ID_HERE',
+		            scope: SCOPES,
+		            callback: (response) => {
+		                access_token = response.access_token;
+		                showToast('נמצאה טבלה קיימת!', 'success');
+		            },
+		        });
+		        
+		        tokenClient.requestAccessToken();
+		        
+		    } catch (error) {
+		        console.error('Error connecting to Google Sheets:', error);
+		        showToast('שגיאה בחיבור ל-Google Sheets', 'error');
+		    }
 		}
 
 		async function findOrCreateSpreadsheet() {
