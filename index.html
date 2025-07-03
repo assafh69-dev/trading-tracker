@@ -878,7 +878,7 @@
 		            scope: SCOPES,
 		            callback: (response) => {
 		                access_token = response.access_token;
-		                showToast('נמצאה טבלה קיימת!', 'success');
+		                findOrCreateSpreadsheet(); 
 		            },
 		        });
 		        
