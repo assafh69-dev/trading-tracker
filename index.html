@@ -633,11 +633,12 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab(event, 'trades')">טרייד חדש</button>
-            <button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
-            <button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
-            <button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-        </div>
+	    <button class="tab active" onclick="showTab(event, 'trades')">טריד חדש</button>
+	    <button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
+	    <button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
+	    <button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
+	    <button class="tab" onclick="showTab(event, 'about')">אודות</button>  <!-- הוסף את זה -->
+	</div>
 
         <div id="trades" class="tab-content active">
             <div class="form-section">
@@ -827,6 +828,25 @@
 				</div>
             </div>
         </div>
+
+	<div id="about" class="tab-content">
+	    <div class="form-section">
+	        <h3>📋 אודות Trading Tracker</h3>
+	        <h4>מערכת מעקב טריידים מקצועית</h4>
+	        <p><strong>התחלה מהירה:</strong></p>
+	        <ol>
+	            <li>הזן יתרה התחלתית</li>
+	            <li>לחץ "התחבר לGoogle Sheets" ואשר גישה</li>
+	            <li>התחל להוסיף טריידים!</li>
+	        </ol>
+	        
+	        <p><strong>פותח על ידי:</strong> Assaf Harari בשיתוף Claude (Anthropic)</p>
+	        <p><strong>יצירת קשר:</strong> assafh69@gmail.com</p>
+	        
+	        <hr style="margin: 20px 0;">
+	        <p><small>המערכת שומרת נתונים ב-Google Sheets שלך בלבד. אין גישה לטבלאות אחרות.</small></p>
+	    </div>
+	</div>
     </div>
 
     <script>
