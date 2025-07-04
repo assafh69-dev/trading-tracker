@@ -97,141 +97,141 @@
             width: 150px;
         }
 
-		.risk-settings {
-			background: #fff3cd;
-			border: 2px solid #ffc107;
-			padding: 15px;
-			margin: 10px 0;
-			border-radius: 8px;
-			display: flex;
-			gap: 20px;
-			align-items: center;
-			justify-content: center;
-		}
+	.risk-settings {
+		background: #fff3cd;
+		border: 2px solid #ffc107;
+		padding: 15px;
+		margin: 10px 0;
+		border-radius: 8px;
+		display: flex;
+		gap: 20px;
+		align-items: center;
+		justify-content: center;
+	}
 
+	.fee-settings {
+		background: #f3e5f5;
+		border: 2px solid #9c27b0;
+		padding: 15px;
+		margin: 10px 0;
+		border-radius: 8px;
+		display: flex;
+		gap: 20px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.fee-input {
+		display: inline-block;
+		margin: 0 10px;
+	}
+
+	.fee-input label {
+		font-weight: bold;
+		margin-left: 8px;
+		color: #7b1fa2;
+	}
+
+	.fee-input input {
+		padding: 6px 10px;
+		border: 2px solid #ce93d8;
+		border-radius: 5px;
+		width: 80px;
+		text-align: center;
+	}
+
+	@media (max-width: 768px) {
 		.fee-settings {
-			background: #f3e5f5;
-			border: 2px solid #9c27b0;
-			padding: 15px;
-			margin: 10px 0;
-			border-radius: 8px;
-			display: flex;
-			gap: 20px;
-			align-items: center;
-			justify-content: center;
-		}
-
-		.fee-input {
-			display: inline-block;
-			margin: 0 10px;
-		}
-
-		.fee-input label {
-			font-weight: bold;
-			margin-left: 8px;
-			color: #7b1fa2;
-		}
-
-		.fee-input input {
-			padding: 6px 10px;
-			border: 2px solid #ce93d8;
-			border-radius: 5px;
-			width: 80px;
-			text-align: center;
-		}
-
-		@media (max-width: 768px) {
-			.fee-settings {
-				flex-direction: column;
-				gap: 10px;
-			}
-		}
-
-		.filter-section {
-			background: #e3f2fd;
-			border: 2px solid #2196f3;
-			padding: 20px;
-			margin: 15px 0;
-			border-radius: 10px;
-		}
-
-		.filter-grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-			gap: 15px;
-			margin-bottom: 15px;
-		}
-
-		.filter-group {
-			display: flex;
 			flex-direction: column;
-		}
-
-		.filter-group label {
-			font-weight: bold;
-			margin-bottom: 5px;
-			color: #1976d2;
-			font-size: 0.9em;
-		}
-
-		.filter-group input, .filter-group select {
-			padding: 8px;
-			border: 2px solid #bbdefb;
-			border-radius: 5px;
-			font-size: 13px;
-		}
-
-		.filter-controls {
-			display: flex;
 			gap: 10px;
-			justify-content: center;
-			flex-wrap: wrap;
 		}
+	}
 
-		.sort-section {
-			margin-top: 15px;
-			padding-top: 15px;
-			border-top: 1px solid #90caf9;
+	.filter-section {
+		background: #e3f2fd;
+		border: 2px solid #2196f3;
+		padding: 20px;
+		margin: 15px 0;
+		border-radius: 10px;
+	}
+
+	.filter-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: 15px;
+		margin-bottom: 15px;
+	}
+
+	.filter-group {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.filter-group label {
+		font-weight: bold;
+		margin-bottom: 5px;
+		color: #1976d2;
+		font-size: 0.9em;
+	}
+
+	.filter-group input, .filter-group select {
+		padding: 8px;
+		border: 2px solid #bbdefb;
+		border-radius: 5px;
+		font-size: 13px;
+	}
+
+	.filter-controls {
+		display: flex;
+		gap: 10px;
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+
+	.sort-section {
+		margin-top: 15px;
+		padding-top: 15px;
+		border-top: 1px solid #90caf9;
+	}
+
+	@media (max-width: 768px) {
+		.filter-grid {
+			grid-template-columns: 1fr;
 		}
+	}
 
-		@media (max-width: 768px) {
-			.filter-grid {
-				grid-template-columns: 1fr;
-			}
+
+	.risk-input {
+		display: inline-block;
+		margin: 0 10px;
+	}
+
+	.risk-input label {
+		font-weight: bold;
+		margin-left: 8px;
+		color: #856404;
+	}
+
+	.risk-input input {
+		padding: 6px 10px;
+		border: 2px solid #ffc107;
+		border-radius: 5px;
+		width: 80px;
+		text-align: center;
+	}
+
+	.risk-exceeded {
+		background: #f8d7da !important;
+		border-color: #dc3545 !important;
+		color: #721c24 !important;
+	}
+
+	@media (max-width: 768px) {
+		.risk-settings {
+			flex-direction: column;
+			gap: 10px;
 		}
-
-
-		.risk-input {
-			display: inline-block;
-			margin: 0 10px;
-		}
-
-		.risk-input label {
-			font-weight: bold;
-			margin-left: 8px;
-			color: #856404;
-		}
-
-		.risk-input input {
-			padding: 6px 10px;
-			border: 2px solid #ffc107;
-			border-radius: 5px;
-			width: 80px;
-			text-align: center;
-		}
-
-		.risk-exceeded {
-			background: #f8d7da !important;
-			border-color: #dc3545 !important;
-			color: #721c24 !important;
-		}
-
-		@media (max-width: 768px) {
-			.risk-settings {
-				flex-direction: column;
-				gap: 10px;
-			}
-		}
+	}
 
         .tabs {
             display: flex;
@@ -499,64 +499,99 @@
         }
 		
 		/* Toast notifications */
+	.toast-container {
+		position: fixed;
+		top: 20px;
+		right: 20px;
+		z-index: 1000;
+		max-width: 300px;
+	}
+
+	.toast {
+		background: linear-gradient(45deg, #2c3e50, #3498db);
+		color: white;
+		padding: 15px 20px;
+		border-radius: 8px;
+		margin-bottom: 10px;
+		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+		transform: translateX(400px);
+		opacity: 0;
+		transition: all 0.3s ease;
+		border-right: 4px solid #27ae60;
+		font-weight: bold;
+	}
+
+	.toast.success {
+		border-right-color: #27ae60;
+		background: linear-gradient(45deg, #27ae60, #2ecc71);
+	}
+
+	.toast.error {
+		border-right-color: #e74c3c;
+		background: linear-gradient(45deg, #e74c3c, #c0392b);
+	}
+
+	.toast.warning {
+		border-right-color: #f39c12;
+		background: linear-gradient(45deg, #f39c12, #e67e22);
+	}
+
+	.toast.show {
+		transform: translateX(0);
+		opacity: 1;
+	}
+
+	@media (max-width: 768px) {
 		.toast-container {
-			position: fixed;
-			top: 20px;
-			right: 20px;
-			z-index: 1000;
-			max-width: 300px;
+			left: 10px;
+			right: 10px;
+			top: 10px;
+			max-width: none;
 		}
-
+		
 		.toast {
-			background: linear-gradient(45deg, #2c3e50, #3498db);
-			color: white;
-			padding: 15px 20px;
-			border-radius: 8px;
-			margin-bottom: 10px;
-			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-			transform: translateX(400px);
-			opacity: 0;
-			transition: all 0.3s ease;
-			border-right: 4px solid #27ae60;
-			font-weight: bold;
+			transform: translateY(-100px);
 		}
-
-		.toast.success {
-			border-right-color: #27ae60;
-			background: linear-gradient(45deg, #27ae60, #2ecc71);
-		}
-
-		.toast.error {
-			border-right-color: #e74c3c;
-			background: linear-gradient(45deg, #e74c3c, #c0392b);
-		}
-
-		.toast.warning {
-			border-right-color: #f39c12;
-			background: linear-gradient(45deg, #f39c12, #e67e22);
-		}
-
+		
 		.toast.show {
-			transform: translateX(0);
-			opacity: 1;
+			transform: translateY(0);
 		}
+	}
 
-		@media (max-width: 768px) {
-			.toast-container {
-				left: 10px;
-				right: 10px;
-				top: 10px;
-				max-width: none;
-			}
-			
-			.toast {
-				transform: translateY(-100px);
-			}
-			
-			.toast.show {
-				transform: translateY(0);
-			}
-		}
+		
+	/* הוסף כאן את הקוד החדש: */
+	.settings-toggle {
+	    background: #3498db;
+	    color: white;
+	    padding: 10px 20px;
+	    border: none;
+	    border-radius: 8px;
+	    cursor: pointer;
+	    font-size: 16px;
+	    font-weight: bold;
+	    margin: 10px 0;
+	    width: 100%;
+	    text-align: center;
+	}
+
+	.settings-toggle:hover {
+	    background: #2980b9;
+	}
+
+	.settings-collapsible {
+	    display: none;
+	    animation: slideDown 0.3s ease;
+	}
+
+	.settings-collapsible.active {
+	    display: block;
+	}
+
+	@keyframes slideDown {
+	    from { opacity: 0; transform: translateY(-10px); }
+	    to { opacity: 1; transform: translateY(0); }
+	}
+	
     </style>
 </head>
 <body>
@@ -567,39 +602,47 @@
             <p>ניהול תיק השקעות מקצועי עם ניהול סיכונים</p>
         </div>
 
-        <div class="account-settings">
-            <div class="account-input">
-                <label>סכום התחלתי ($):</label>
-                <input type="number" id="initialBalance" placeholder="10000">
-            </div>
-            <button class="btn btn-small" onclick="updateAccountBalance()">עדכן יתרה</button>
-			<button class="btn btn-small btn-success" onclick="saveDataLocally()">💾 שמור מקומית</button>
-			<button class="btn btn-small btn-warning" onclick="loadDataLocally()">📂 טען נתונים</button>
-        </div>
+        ///---------
 
-		<div class="risk-settings">
-			<div class="risk-input">
-				<label>ריסק למניה (%):</label>
-				<input type="number" id="riskPerStock" step="0.1" value="1.0" placeholder="1.0">
-			</div>
-			<div class="risk-input">
-				<label>ריסק כולל מקסימלי (%):</label>
-				<input type="number" id="maxTotalRisk" step="0.5" value="10.0" placeholder="10.0">
-			</div>
-			<button class="btn btn-small" onclick="updateRiskSettings()">עדכן הגדרות ריסק</button>
-		</div>
+	<button class="settings-toggle" onclick="toggleSettings()">
+	    ⚙️ הגדרות חשבון <span id="settingsIcon">🔽</span>
+	</button>
+	
+	<div id="settingsCollapsible" class="settings-collapsible">
+	    <div class="account-settings">
+	        <div class="account-input">
+	            <label>סכום התחלתי ($):</label>
+	            <input type="number" id="initialBalance" placeholder="10000">
+	        </div>
+	        <button class="btn btn-small" onclick="updateAccountBalance()">עדכן יתרה</button>
+	    </div>
+	
+	    <div class="risk-settings">
+	        <div class="risk-input">
+	            <label>ריסק למניה (%):</label>
+	            <input type="number" id="riskPerStock" step="0.1" value="1.0" placeholder="1.0">
+	        </div>
+	        <div class="risk-input">
+	            <label>ריסק כולל מקסימלי (%):</label>
+	            <input type="number" id="maxTotalRisk" step="0.5" value="10.0" placeholder="10.0">
+	        </div>
+	        <button class="btn btn-small" onclick="updateRiskSettings()">עדכן הגדרות ריסק</button>
+	    </div>
+	
+	    <div class="fee-settings">
+	        <div class="fee-input">
+	            <label>עמלה קבועה ($):</label>
+	            <input type="number" id="fixedFee" step="0.01" value="5.00" placeholder="5.00">
+	        </div>
+	        <div class="fee-input">
+	            <label>עמלה באחוזים (%):</label>
+	            <input type="number" id="percentageFee" step="0.001" value="0.05" placeholder="0.05">
+	        </div>
+	        <button class="btn btn-small" onclick="updateFeeSettings()">עדכן עמלות</button>
+	    </div>
+	</div>
 
-		<div class="fee-settings">
-			<div class="fee-input">
-				<label>עמלה קבועה ($):</label>
-				<input type="number" id="fixedFee" step="0.01" value="5.00" placeholder="5.00">
-			</div>
-			<div class="fee-input">
-				<label>עמלה באחוזים (%):</label>
-				<input type="number" id="percentageFee" step="0.001" value="0.05" placeholder="0.05">
-			</div>
-			<button class="btn btn-small" onclick="updateFeeSettings()">עדכן עמלות</button>
-		</div>
+	////--------	
 
         <div class="account-summary">
             <div class="account-item">
@@ -1167,7 +1210,20 @@
 				feesInput.value = '';
 			}
 		}
-		
+
+		function toggleSettings() {
+		    const collapsible = document.getElementById('settingsCollapsible');
+		    const icon = document.getElementById('settingsIcon');
+		    
+		    if (collapsible.classList.contains('active')) {
+		        collapsible.classList.remove('active');
+		        icon.textContent = '🔽';
+		    } else {
+		        collapsible.classList.add('active');
+		        icon.textContent = '🔼';
+		    }
+		}
+	    
 		function updateRiskSettings() {
 			const riskPerStock = parseFloat(document.getElementById('riskPerStock').value) || 1.0;
 			const maxTotalRisk = parseFloat(document.getElementById('maxTotalRisk').value) || 10.0;
