@@ -672,7 +672,7 @@
         </div>
 
         <div class="tabs">
-	    <button class="tab active" onclick="showTab(event, 'trades')">טריד חדש</button>
+	    <button class="tab active" onclick="showTab(event, 'trades')">טרייד חדש</button>
 	    <button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 	    <button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 	    <button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
@@ -1412,12 +1412,12 @@
 				errors.push('הכמות חייבת להיות חיובית');
 			}
 
-			// בדיקת גודל הטריד יחסית לתיק
+			// בדיקת גודל הטרייד יחסית לתיק
 			if (entryPrice && quantity && accountData.initialBalance) {
 				const tradeValue = entryPrice * quantity;
 				const portfolioPercent = (tradeValue / accountData.initialBalance) * 100;
 				if (portfolioPercent > 50) {
-					errors.push(`הטריד מהווה ${portfolioPercent.toFixed(1)}% מהתיק - זה הרבה מאוד!`);
+					errors.push(`הטרייד מהווה ${portfolioPercent.toFixed(1)}% מהתיק - זה הרבה מאוד!`);
 				}
 			}
 
@@ -1947,15 +1947,15 @@
 			
 			statsGrid.innerHTML = `
 				<div class="stat-card">
-					<h4>סה"כ טרידים</h4>
+					<h4>סה"כ טריידים</h4>
 					<div class="value">${totalTrades}</div>
 				</div>
 				<div class="stat-card">
-					<h4>טרידים פתוחים</h4>
+					<h4>טריידים פתוחים</h4>
 					<div class="value">${openTrades.length}</div>
 				</div>
 				<div class="stat-card">
-					<h4>טרידים סגורים</h4>
+					<h4>טריידים סגורים</h4>
 					<div class="value">${closedTrades.length}</div>
 				</div>
 				<div class="stat-card">
