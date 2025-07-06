@@ -591,7 +591,24 @@
 	    from { opacity: 0; transform: translateY(-10px); }
 	    to { opacity: 1; transform: translateY(0); }
 	}
+
 	
+	@media (max-width: 768px) {
+	    .tabs {
+	        overflow-x: auto;
+	        white-space: nowrap;
+	        -webkit-overflow-scrolling: touch;
+	        scrollbar-width: thin;
+	    }
+	    
+	    .tab {
+	        min-width: 80px;
+	        flex-shrink: 0;
+	        font-size: 14px;
+	        padding: 12px 15px;
+	    }
+	}
+	    
     </style>
 </head>
 <body>
