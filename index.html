@@ -1390,22 +1390,25 @@
 				const values = response.result.values || [];
 				
 				// Convert back to trades array
-				trades = values.map(row => ({
-					id: parseInt(row[0]) || Date.now() + Math.random(),
-					symbol: row[1] || '',
-					entryDate: row[2] || '',
-					entryPrice: parseFloat(row[3]) || 0,
-					quantity: parseInt(row[4]) || 0,
-					positionType: row[5] || 'Long',
-					initialStop: parseFloat(row[6]) || 0,
-					currentStop: parseFloat(row[7]) || parseFloat(row[6]) || 0,
-					limitPrice: row[8] ? parseFloat(row[8]) : null,
-					exitDate: row[9] || null,
-					exitPrice: row[10] ? parseFloat(row[10]) : null,
-					fees: parseFloat(row[11]) || 0,
-					notes: row[12] || '',
-					entryType: row[13] || 'General' // Add this line
-				}));
+				// Convert back to trades array - FILTER OUT EMPTY ROWS
+				trades = values
+					.filter(row => row[1] && row[1].trim() && row[1] !== '') // Only rows with valid symbol
+					.map(row => ({
+						id: parseInt(row[0]) || Date.now() + Math.random(),
+						symbol: row[1] || '',
+						entryDate: row[2] || '',
+						entryPrice: parseFloat(row[3]) || 0,
+						quantity: parseInt(row[4]) || 0,
+						positionType: row[5] || 'Long',
+						initialStop: parseFloat(row[6]) || 0,
+						currentStop: parseFloat(row[7]) || parseFloat(row[6]) || 0,
+						limitPrice: row[8] ? parseFloat(row[8]) : null,
+						exitDate: row[9] || null,
+						exitPrice: row[10] ? parseFloat(row[10]) : null,
+						fees: parseFloat(row[11]) || 0,
+						notes: row[12] || '',
+						entryType: row[13] || 'General'
+					}));
 				
 				// Update displays
 				displayTrades();
