@@ -2368,7 +2368,7 @@
 				// Get current data from Google Sheets (including the new price column)
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!A2:P1000' // Extended range to include Market Price column
+					range: 'Trades!A2:O1000' // Extended range to include Market Price column
 				});
 				
 				const values = response.result.values || [];
@@ -2376,8 +2376,8 @@
 				
 				// Update only open trades with market prices
 				trades.forEach((trade, index) => {
-					if (!isFullyClosed(trade) && values[index] && values[index][15]) { // Column P (index 15)
-						const marketPrice = parseFloat(values[index][15]);
+					if (!isFullyClosed(trade) && values[index] && values[index][14]) { // Column P (index 14)
+						const marketPrice = parseFloat(values[index][14]);
 						if (!isNaN(marketPrice) && marketPrice > 0) {
 							trade.exitPrice = marketPrice; // Using exitPrice as "current price"
 							updatedCount++;
@@ -2412,10 +2412,10 @@
 				// Check if Market Price column exists
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!P1:P1' // Check column P header
+					range: 'Trades!O1:O1' // Check column O header
 				});
 				
-				// If column P doesn't exist or is empty, add it
+				// If column O doesn't exist or is empty, add it
 				if (!response.result.values || !response.result.values[0] || !response.result.values[0][0]) {
 					console.log('Market Price column not found. Adding migration...');
 					await migrateToNewFormat();
@@ -2424,7 +2424,7 @@
 				}
 				
 			} catch (error) {
-				// If error accessing column P, it probably doesn't exist
+				// If error accessing column O, it probably doesn't exist
 				console.log('Market Price column not found. Adding migration...');
 				await migrateToNewFormat();
 			}
@@ -2437,7 +2437,7 @@
 				// Add Market Price header
 				await gapi.client.sheets.spreadsheets.values.update({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!P1:P1',
+					range: 'Trades!O1:O1',
 					valueInputOption: 'RAW',
 					values: [['Market Price']]
 				});
@@ -2450,7 +2450,7 @@
 				
 				await gapi.client.sheets.spreadsheets.values.update({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!P2:P1000',
+					range: 'Trades!O2:O1000',
 					valueInputOption: 'USER_ENTERED',
 					values: formulas
 				});
