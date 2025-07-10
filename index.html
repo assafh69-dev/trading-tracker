@@ -2522,44 +2522,66 @@
 			try {
 				showToast('מייבא נתונים מהברוקר...', 'success');
 				
-				// Read data from import table
+				// Read data from import table - FIXED: Start from row 7, read all 7 columns
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Broker Data!A7:G1000' // Start from row 7 // Skip headers, start from row 5
+					range: 'Broker Data!A7:G1000' // Start from row 7, read columns A-G
 				});
 				
 				const values = response.result.values || [];
+				
+				// DEBUG: Log what we actually got
+				console.log('Raw data from spreadsheet:', values);
+				console.log('Number of rows found:', values.length);
+				
 				let importedCount = 0;
 				
 				// Convert broker data to our format
-				values
-					.filter(row => row[1] && row[1].trim() && row[7]) // Valid symbol and Buy/Sell
-					.forEach(row => {
-						const [tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, buySell] = row;
-						
-						// Only import BUY orders (entries)
-						if (buySell === 'BUY') {
-							const trade = {
-								id: Date.now() + Math.random(),
-								symbol: symbol.toUpperCase(),
-								entryDate: convertDateFormat(tradeDate), // Convert YYYYMMDD to YYYY-MM-DD
-								entryPrice: parseFloat(tradePrice),
-								quantity: parseInt(quantity),
-								positionType: 'Long',
-								entryType: 'Import',
-								initialStop: 0, // User needs to fill this
-								currentStop: 0,
-								limitPrice: null,
-								exitDate: null,
-								exitPrice: null,
-								fees: 0,
-								notes: `Imported - TradeID: ${tradeId}`
-							};
-							
-							trades.push(trade);
-							importedCount++;
-						}
+				const validRows = values.filter(row => {
+					// Check if row has data and has Buy/Sell in the right position
+					const hasSymbol = row[1] && row[1].trim();
+					const hasBuySell = row[6]; // FIXED: Column index 6 (7th column)
+					
+					console.log('Checking row:', row);
+					console.log('Has symbol:', hasSymbol, 'Has Buy/Sell:', hasBuySell);
+					
+					return hasSymbol && hasBuySell;
+				});
+				
+				console.log('Valid rows after filtering:', validRows);
+				
+				validRows.forEach(row => {
+					// FIXED: Correct array destructuring (removed extra variables)
+					const [tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, buySell] = row;
+					
+					console.log('Processing row:', {
+						tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, buySell
 					});
+					
+					// Only import BUY orders (entries)
+					if (buySell === 'BUY') {
+						const trade = {
+							id: Date.now() + Math.random(),
+							symbol: symbol.toUpperCase(),
+							entryDate: convertDateFormat(tradeDate), // Convert YYYYMMDD to YYYY-MM-DD
+							entryPrice: parseFloat(tradePrice),
+							quantity: parseInt(quantity),
+							positionType: 'Long',
+							entryType: 'Import',
+							initialStop: 0, // User needs to fill this
+							currentStop: 0,
+							limitPrice: null,
+							exitDate: null,
+							exitPrice: null,
+							fees: 0,
+							notes: `Imported - TradeID: ${tradeId}`
+						};
+						
+						console.log('Creating trade:', trade);
+						trades.push(trade);
+						importedCount++;
+					}
+				});
 				
 				if (importedCount > 0) {
 					updateAccountDisplay();
@@ -2567,21 +2589,13 @@
 					saveDataLocally();
 					showToast(`יובאו ${importedCount} טריידים מהברוקר!`, 'success');
 				} else {
-					showToast('לא נמצאו טריידים לייבוא', 'warning');
+					showToast('לא נמצאו טריידים לייבוא. בדוק את הנתונים בטבלה.', 'warning');
 				}
 				
 			} catch (error) {
 				console.error('Error importing data:', error);
 				showToast('שגיאה בייבוא נתונים', 'error');
 			}
-		}
-
-		function convertDateFormat(dateStr) {
-			// Convert YYYYMMDD to YYYY-MM-DD
-			if (dateStr && dateStr.length === 8) {
-				return `${dateStr.substr(0,4)}-${dateStr.substr(4,2)}-${dateStr.substr(6,2)}`;
-			}
-			return dateStr;
 		}
 
 		
