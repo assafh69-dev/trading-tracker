@@ -616,6 +616,20 @@
 			padding: 12px 15px;
 		}
 	}
+	
+	/* Add this CSS to make the Notes column wider */
+	.trades-table th:nth-child(16), 
+	.trades-table td:nth-child(16) {
+		min-width: 200px;
+		max-width: 300px;
+		word-wrap: break-word;
+		white-space: normal;
+	}
+
+	/* Also make the Notes input in edit mode wider */
+	.trades-table input[type="text"]:nth-child(16) {
+		min-width: 180px;
+	}
 
     </style>
 </head>
