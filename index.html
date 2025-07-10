@@ -2762,6 +2762,14 @@
 				showToast('שגיאה בעדכון הטבלה', 'error');
 			}
 		}
+		
+		function convertDateFormat(dateStr) {
+			// Convert YYYYMMDD to YYYY-MM-DD
+			if (dateStr && dateStr.length === 8) {
+				return `${dateStr.substr(0,4)}-${dateStr.substr(4,2)}-${dateStr.substr(6,2)}`;
+			}
+			return dateStr;
+		}
 
 	</script>
 </body>	
