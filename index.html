@@ -6,7 +6,7 @@
 	  window.dataLayer = window.dataLayer || [];
 	  function gtag(){dataLayer.push(arguments);}
 	  gtag('js', new Date());
-	
+
 	  gtag('config', 'G-2PN66RZ312');
 	</script>
     <meta charset="UTF-8">
@@ -903,6 +903,18 @@
 				<button class="btn btn-success" onclick="downloadCSV()">📥 הורד קובץ CSV</button>
                 <button class="btn btn-danger" onclick="clearAllData()">נקה הכל</button>
 				<hr style="margin: 20px 0;">
+				
+				<h4 style="text-align: center; color: #2c3e50;">📊 ייבוא מברוקר</h4>
+				<div style="text-align: center;">
+					<button class="btn btn-warning" onclick="createImportTable()">🔄 יצור טבלת ייבוא</button>
+					<button class="btn btn-success" onclick="importFromBroker()">📥 ייבא מטבלת ההמרה</button>
+				</div>
+				<p style="text-align: center; font-size: 12px; color: #666; margin-top: 10px;">
+					יצור טבלה ריקה להעתקת נתונים מהברוקר, ואז ייבא אותם לתוכנית
+				</p>
+				
+				<hr style="margin: 20px 0;">
+				
 				<h4 style="text-align: center; color: #2c3e50;">☁️ Google Sheets - סנכרון בענן</h4>
 				<div style="text-align: center;">
 					<button class="btn btn-success" onclick="connectToGoogleSheets()">🔗 התחבר לGoogle Sheets</button>
@@ -2362,6 +2374,156 @@
 				showToast('הדפדפן לא תומך בהורדת קבצים', 'error');
 			}
 		}
+		
+		
+		let import_spreadsheet_id = null;
+
+		async function createImportTable() {
+			if (!access_token) {
+				showToast('התחבר תחילה ל-Google Sheets', 'warning');
+				return;
+			}
+			
+			try {
+				showToast('יוצר טבלת ייבוא...', 'success');
+				
+				// Create new spreadsheet for import
+				const response = await gapi.client.request({
+					path: 'https://sheets.googleapis.com/v4/spreadsheets',
+					method: 'POST',
+					headers: {
+						'Authorization': `Bearer ${access_token}`,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						properties: {
+							title: 'Trading Import Table'
+						},
+						sheets: [{
+							properties: {
+								title: 'Broker Data'
+							}
+						}]
+					})
+				});
+				
+				import_spreadsheet_id = response.result.spreadsheetId;
+				
+				// Add headers and formulas
+				await setupImportTable();
+				
+				// Open the spreadsheet
+				window.open(`https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`, '_blank');
+				
+				showToast('טבלת ייבוא נוצרה! העתק נתונים מהברוקר ולחץ "ייבא"', 'success');
+				
+			} catch (error) {
+				console.error('Error creating import table:', error);
+				showToast('שגיאה ביצירת טבלת ייבוא', 'error');
+			}
+		}
+
+		async function setupImportTable() {
+			// Headers for broker data
+			const headers = [
+				['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell'],
+				[],
+				['Instructions:', 'Paste your broker data starting from row 4'],
+				['Then click "Import" in the Trading Tracker app']
+			];
+			
+			// Add headers
+			await gapi.client.sheets.spreadsheets.values.update({
+				spreadsheetId: import_spreadsheet_id,
+				range: 'Broker Data!A1:H4',
+				valueInputOption: 'RAW',
+				values: headers
+			});
+			
+			// Add sample data row
+			const sampleData = [
+				['7834161877', 'AAPL', '20250625', '100', '150.50', '15050', '0', 'BUY']
+			];
+			
+			await gapi.client.sheets.spreadsheets.values.update({
+				spreadsheetId: import_spreadsheet_id,
+				range: 'Broker Data!A5:H5',
+				valueInputOption: 'RAW',
+				values: sampleData
+			});
+		}
+
+		async function importFromBroker() {
+			if (!access_token || !import_spreadsheet_id) {
+				showToast('צור תחילה טבלת ייבוא', 'warning');
+				return;
+			}
+			
+			try {
+				showToast('מייבא נתונים מהברוקר...', 'success');
+				
+				// Read data from import table
+				const response = await gapi.client.sheets.spreadsheets.values.get({
+					spreadsheetId: import_spreadsheet_id,
+					range: 'Broker Data!A5:H1000' // Skip headers, start from row 5
+				});
+				
+				const values = response.result.values || [];
+				let importedCount = 0;
+				
+				// Convert broker data to our format
+				values
+					.filter(row => row[1] && row[1].trim() && row[7]) // Valid symbol and Buy/Sell
+					.forEach(row => {
+						const [tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, pnl, buySell] = row;
+						
+						// Only import BUY orders (entries)
+						if (buySell === 'BUY') {
+							const trade = {
+								id: Date.now() + Math.random(),
+								symbol: symbol.toUpperCase(),
+								entryDate: convertDateFormat(tradeDate), // Convert YYYYMMDD to YYYY-MM-DD
+								entryPrice: parseFloat(tradePrice),
+								quantity: parseInt(quantity),
+								positionType: 'Long',
+								entryType: 'Import',
+								initialStop: 0, // User needs to fill this
+								currentStop: 0,
+								limitPrice: null,
+								exitDate: null,
+								exitPrice: null,
+								fees: 0,
+								notes: `Imported - TradeID: ${tradeId}`
+							};
+							
+							trades.push(trade);
+							importedCount++;
+						}
+					});
+				
+				if (importedCount > 0) {
+					updateAccountDisplay();
+					displayTrades();
+					saveDataLocally();
+					showToast(`יובאו ${importedCount} טריידים מהברוקר!`, 'success');
+				} else {
+					showToast('לא נמצאו טריידים לייבוא', 'warning');
+				}
+				
+			} catch (error) {
+				console.error('Error importing data:', error);
+				showToast('שגיאה בייבוא נתונים', 'error');
+			}
+		}
+
+		function convertDateFormat(dateStr) {
+			// Convert YYYYMMDD to YYYY-MM-DD
+			if (dateStr && dateStr.length === 8) {
+				return `${dateStr.substr(0,4)}-${dateStr.substr(4,2)}-${dateStr.substr(6,2)}`;
+			}
+			return dateStr;
+		}
+
 		
 		async function refreshMarketPrices() {
 			if (!access_token || !spreadsheet_id) {
