@@ -2376,12 +2376,32 @@
 		}
 		
 		
-		let import_spreadsheet_id = null;
+		let import_spreadsheet_id = localStorage.getItem('import_spreadsheet_id') || null;
 
 		async function createImportTable() {
 			if (!access_token) {
 				showToast('התחבר תחילה ל-Google Sheets', 'warning');
 				return;
+			}
+			
+			// Check if we already have an import table
+			if (import_spreadsheet_id) {
+				try {
+					// Test if the existing table still exists
+					await gapi.client.sheets.spreadsheets.get({
+						spreadsheetId: import_spreadsheet_id
+					});
+					
+					// If we get here, table exists - just open it
+					window.open(`https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`, '_blank');
+					showToast('פתח טבלת ייבוא קיימת!', 'success');
+					return;
+				} catch (error) {
+					// Table doesn't exist anymore, create new one
+					console.log('Previous import table not found, creating new one');
+					import_spreadsheet_id = null;
+					localStorage.removeItem('import_spreadsheet_id');
+				}
 			}
 			
 			try {
@@ -2397,7 +2417,7 @@
 					},
 					body: JSON.stringify({
 						properties: {
-							title: 'Trading Import Table'
+							title: 'Trading Import Table - ' + new Date().toISOString().split('T')[0]
 						},
 						sheets: [{
 							properties: {
@@ -2408,6 +2428,9 @@
 				});
 				
 				import_spreadsheet_id = response.result.spreadsheetId;
+				
+				// Save the ID so it persists after refresh
+				localStorage.setItem('import_spreadsheet_id', import_spreadsheet_id);
 				
 				// Add headers and formulas
 				await setupImportTable();
@@ -2514,7 +2537,12 @@
 
 
 		async function importFromBroker() {
-			if (!access_token || !import_spreadsheet_id) {
+			if (!access_token) {
+				showToast('התחבר תחילה ל-Google Sheets', 'warning');
+				return;
+			}
+			
+			if (!import_spreadsheet_id) {
 				showToast('צור תחילה טבלת ייבוא', 'warning');
 				return;
 			}
@@ -2522,10 +2550,10 @@
 			try {
 				showToast('מייבא נתונים מהברוקר...', 'success');
 				
-				// Read data from import table - FIXED: Start from row 7, read all 7 columns
+				// Read data from import table - start from row 7
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Broker Data!A7:G1000' // Start from row 7, read columns A-G
+					range: 'Broker Data!A7:G1000'
 				});
 				
 				const values = response.result.values || [];
@@ -2536,65 +2564,93 @@
 				
 				let importedCount = 0;
 				
-				// Convert broker data to our format
+				// Filter and process rows
 				const validRows = values.filter(row => {
-					// Check if row has data and has Buy/Sell in the right position
+					// Must have at least 7 columns and Symbol in column B (index 1)
+					const hasEnoughColumns = row.length >= 7;
 					const hasSymbol = row[1] && row[1].trim();
-					const hasBuySell = row[6]; // FIXED: Column index 6 (7th column)
+					const hasBuySell = row[6] && (row[6].trim() === 'BUY' || row[6].trim() === 'SELL');
 					
 					console.log('Checking row:', row);
-					console.log('Has symbol:', hasSymbol, 'Has Buy/Sell:', hasBuySell);
+					console.log('Has enough columns:', hasEnoughColumns, 'Has symbol:', hasSymbol, 'Has Buy/Sell:', hasBuySell);
 					
-					return hasSymbol && hasBuySell;
+					return hasEnoughColumns && hasSymbol && hasBuySell;
 				});
 				
 				console.log('Valid rows after filtering:', validRows);
 				
 				validRows.forEach(row => {
-					// FIXED: Correct array destructuring (removed extra variables)
-					const [tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, buySell] = row;
+					// Extract data according to the table structure:
+					// A=TradeID, B=Symbol, C=TradeDate, D=Quantity, E=TradePrice, F=TradeMoney, G=Buy/Sell
+					const tradeId = row[0] || '';
+					const symbol = row[1] || '';
+					const tradeDate = row[2] || '';
+					const quantity = row[3] || '';
+					const tradePrice = row[4] || '';
+					const tradeMoney = row[5] || '';
+					const buySell = row[6] || '';
 					
 					console.log('Processing row:', {
 						tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, buySell
 					});
 					
-					// Only import BUY orders (entries)
-					if (buySell === 'BUY') {
-						const trade = {
-							id: Date.now() + Math.random(),
-							symbol: symbol.toUpperCase(),
-							entryDate: convertDateFormat(tradeDate), // Convert YYYYMMDD to YYYY-MM-DD
-							entryPrice: parseFloat(tradePrice),
-							quantity: parseInt(quantity),
-							positionType: 'Long',
-							entryType: 'Import',
-							initialStop: 0, // User needs to fill this
-							currentStop: 0,
-							limitPrice: null,
-							exitDate: null,
-							exitPrice: null,
-							fees: 0,
-							notes: `Imported - TradeID: ${tradeId}`
-						};
-						
-						console.log('Creating trade:', trade);
-						trades.push(trade);
-						importedCount++;
+					// Import BOTH BUY and SELL as separate trades
+					// User will need to manually adjust Position Type and connect related trades
+					
+					// Determine position type and quantity based on BUY/SELL
+					let positionType, finalQuantity;
+					
+					if (buySell.trim() === 'BUY') {
+						positionType = 'Long';
+						finalQuantity = Math.abs(parseInt(quantity)) || 0;
+					} else if (buySell.trim() === 'SELL') {
+						// For SELL, assume SHORT position unless quantity is negative
+						const rawQuantity = parseInt(quantity) || 0;
+						if (rawQuantity < 0) {
+							// Negative quantity with SELL might be closing a LONG position
+							positionType = 'Long'; // User needs to verify and possibly close existing trade
+							finalQuantity = Math.abs(rawQuantity);
+						} else {
+							// Positive quantity with SELL is likely a SHORT position
+							positionType = 'Short';
+							finalQuantity = Math.abs(rawQuantity);
+						}
 					}
+					
+					const trade = {
+						id: Date.now() + Math.random(),
+						symbol: symbol.toUpperCase().trim(),
+						entryDate: convertDateFormat(tradeDate), // Convert YYYYMMDD to YYYY-MM-DD
+						entryPrice: parseFloat(tradePrice) || 0,
+						quantity: finalQuantity,
+						positionType: positionType,
+						entryType: 'Import',
+						initialStop: 0, // User needs to fill this manually
+						currentStop: 0,
+						limitPrice: null,
+						exitDate: null,
+						exitPrice: null,
+						fees: 0,
+						notes: `Imported ${buySell} - TradeID: ${tradeId} - VERIFY Position Type!`
+					};
+					
+					console.log('Creating trade:', trade);
+					trades.push(trade);
+					importedCount++;
 				});
 				
 				if (importedCount > 0) {
 					updateAccountDisplay();
 					displayTrades();
 					saveDataLocally();
-					showToast(`יובאו ${importedCount} טריידים מהברוקר!`, 'success');
+					showToast(`יובאו ${importedCount} טריידים! בדוק Position Type ו-Initial Stop ידנית 📝`, 'success');
 				} else {
 					showToast('לא נמצאו טריידים לייבוא. בדוק את הנתונים בטבלה.', 'warning');
 				}
 				
 			} catch (error) {
 				console.error('Error importing data:', error);
-				showToast('שגיאה בייבוא נתונים', 'error');
+				showToast('שגיאה בייבוא נתונים: ' + error.message, 'error');
 			}
 		}
 
