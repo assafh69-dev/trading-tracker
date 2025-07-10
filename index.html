@@ -2423,35 +2423,95 @@
 			}
 		}
 
+
 		async function setupImportTable() {
-			// Headers for broker data
-			const headers = [
-				['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell'],
-				[],
-				['Instructions:', 'Paste your broker data starting from row 4'],
-				['Then click "Import" in the Trading Tracker app']
+			// Instructions with colored background + empty row for spacing
+			const instructions = [
+				['📋 הוראות:', 'העתק נתונים מהברוקר החל משורה 7 (מתחת לכותרות)'],
+				['💡 טיפ:', 'לחץ "ייבא" באפליקציה לאחר ההעתקה'],
+				['שורה לדוגמה:'],
+				['7834161877', 'AAPL', '20250625', '100', '150.50', '15050', 'BUY'],
+				[''], // ← שורת רווח ריקה
+				['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'Buy/Sell']
 			];
 			
-			// Add headers
+			// Add all content
 			await gapi.client.sheets.spreadsheets.values.update({
 				spreadsheetId: import_spreadsheet_id,
-				range: 'Broker Data!A1:H4',
+				range: 'Broker Data!A1:G6', // Changed to G6
 				valueInputOption: 'RAW',
-				values: headers
+				values: instructions
 			});
 			
-			// Add sample data row
-			const sampleData = [
-				['7834161877', 'AAPL', '20250625', '100', '150.50', '15050', '0', 'BUY']
-			];
-			
-			await gapi.client.sheets.spreadsheets.values.update({
-				spreadsheetId: import_spreadsheet_id,
-				range: 'Broker Data!A5:H5',
-				valueInputOption: 'RAW',
-				values: sampleData
-			});
+			// Format instruction rows (1-3) with background color
+			await formatInstructionRows();
 		}
+
+
+		async function formatInstructionRows() {
+			try {
+				await gapi.client.sheets.spreadsheets.batchUpdate({
+					spreadsheetId: import_spreadsheet_id,
+					resource: {
+						requests: [
+							// Instructions background (rows 1-3)
+							{
+								repeatCell: {
+									range: {
+										sheetId: 0,
+										startRowIndex: 0, // Row 1
+										endRowIndex: 3,   // Row 3
+										startColumnIndex: 0,
+										endColumnIndex: 7
+									},
+									cell: {
+										userEnteredFormat: {
+											backgroundColor: {
+												red: 0.9,
+												green: 0.95,
+												blue: 1.0
+											},
+											textFormat: {
+												bold: true
+											}
+										}
+									},
+									fields: 'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.bold'
+								}
+							},
+							// Headers background (row 6 now)
+							{
+								repeatCell: {
+									range: {
+										sheetId: 0,
+										startRowIndex: 5, // Row 6
+										endRowIndex: 6,   // Row 6
+										startColumnIndex: 0,
+										endColumnIndex: 7
+									},
+									cell: {
+										userEnteredFormat: {
+											backgroundColor: {
+												red: 0.8,
+												green: 0.9,
+												blue: 0.8
+											},
+											textFormat: {
+												bold: true
+											}
+										}
+									},
+									fields: 'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.bold'
+								}
+							}
+						]
+					}
+				});
+			} catch (error) {
+				console.log('Could not format cells:', error);
+			}
+		}
+
 
 		async function importFromBroker() {
 			if (!access_token || !import_spreadsheet_id) {
@@ -2465,7 +2525,7 @@
 				// Read data from import table
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Broker Data!A5:H1000' // Skip headers, start from row 5
+					range: 'Broker Data!A7:G1000' // Start from row 7 // Skip headers, start from row 5
 				});
 				
 				const values = response.result.values || [];
@@ -2475,7 +2535,7 @@
 				values
 					.filter(row => row[1] && row[1].trim() && row[7]) // Valid symbol and Buy/Sell
 					.forEach(row => {
-						const [tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, pnl, buySell] = row;
+						const [tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, buySell] = row;
 						
 						// Only import BUY orders (entries)
 						if (buySell === 'BUY') {
