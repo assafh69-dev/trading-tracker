@@ -615,20 +615,22 @@
 			min-width: 180px;
 		}
 		
-		/* Mobile Tabs Fix */
+		/* Mobile Tabs Fix - ONLY */
 		@media (max-width: 768px) {
 			.tabs {
 				overflow-x: auto;
 				white-space: nowrap;
 				-webkit-overflow-scrolling: touch;
 				scrollbar-width: thin;
+				padding-bottom: 5px;
 			}
 			
 			.tab {
-				min-width: 80px;
+				min-width: 85px;
 				flex-shrink: 0;
-				font-size: 14px;
-				padding: 12px 15px;
+				font-size: 13px;
+				padding: 10px 12px;
+				margin: 0 2px;
 			}
 		}
 		
