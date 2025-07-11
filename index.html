@@ -2633,20 +2633,21 @@
 
 
 		async function setupImportTable() {
-			// Instructions with colored background + empty row for spacing
+			// New IBKR format instructions
 			const instructions = [
-				['📋 הוראות:', 'העתק נתונים מהברוקר החל משורה 7 (מתחת לכותרות)'],
-				['💡 טיפ:', 'לחץ "ייבא" באפליקציה לאחר ההעתקה'],
+				['📋 הוראות חדשות:', 'העתק נתונים מ-IBKR החל משורה 7 (מתחת לכותרות)'],
+				['💡 פורמט IBKR:', 'Date | Symbol | Description | Transaction Type | Quantity | Price | Gross Amount | Commission'],
+				['✅ טיפ:', 'לחץ "ייבא" באפליקציה לאחר ההעתקה'],
 				['שורה לדוגמה:'],
-				['7834161877', 'AAPL', '20250625', '100', '150.50', '15050', 'BUY'],
+				['2025-07-10', 'AAPL', 'APPLE INC', 'Buy', '100', '150.50 USD', '-15050.00', '-1.5'],
 				[''], // ← שורת רווח ריקה
-				['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'Buy/Sell']
+				['Date', 'Symbol', 'Description', 'Transaction Type', 'Quantity', 'Price', 'Gross Amount', 'Commission']
 			];
 			
 			// Add all content
 			await gapi.client.sheets.spreadsheets.values.update({
 				spreadsheetId: import_spreadsheet_id,
-				range: 'Broker Data!A1:G6', // Changed to G6
+				range: 'Broker Data!A1:H6',
 				valueInputOption: 'RAW',
 				values: instructions
 			});
@@ -2733,12 +2734,12 @@
 			}
 			
 			try {
-				showToast('מייבא נתונים מהברוקר...', 'success');
+				showToast('מייבא נתונים מ-IBKR...', 'success');
 				
 				// Read data from import table - start from row 7
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Broker Data!A7:G1000'
+					range: 'Broker Data!A7:H1000'
 				});
 				
 				const values = response.result.values || [];
@@ -2749,88 +2750,75 @@
 				
 				let importedCount = 0;
 				
-				// Filter and process rows
+				// Filter and process rows - new IBKR format
 				const validRows = values.filter(row => {
-					// Must have at least 7 columns and Symbol in column B (index 1)
-					const hasEnoughColumns = row.length >= 7;
+					// Must have at least 8 columns and Symbol in column B (index 1)
+					const hasEnoughColumns = row.length >= 8;
 					const hasSymbol = row[1] && row[1].trim();
-					const hasBuySell = row[6] && (row[6].trim() === 'BUY' || row[6].trim() === 'SELL');
+					const hasTransactionType = row[3] && (row[3].trim() === 'Buy' || row[3].trim() === 'Sell');
 					
 					console.log('Checking row:', row);
-					console.log('Has enough columns:', hasEnoughColumns, 'Has symbol:', hasSymbol, 'Has Buy/Sell:', hasBuySell);
+					console.log('Has enough columns:', hasEnoughColumns, 'Has symbol:', hasSymbol, 'Has Transaction Type:', hasTransactionType);
 					
-					return hasEnoughColumns && hasSymbol && hasBuySell;
+					return hasEnoughColumns && hasSymbol && hasTransactionType;
 				});
 				
 				console.log('Valid rows after filtering:', validRows);
 				
 				validRows.forEach(row => {
-					// Extract data according to the table structure:
-					// A=TradeID, B=Symbol, C=TradeDate, D=Quantity, E=TradePrice, F=TradeMoney, G=Buy/Sell
-					const tradeId = row[0] || '';
+					// Extract data according to IBKR format:
+					// A=Date, B=Symbol, C=Description, D=Transaction Type, E=Quantity, F=Price, G=Gross Amount, H=Commission
+					const date = row[0] || '';
 					const symbol = row[1] || '';
-					const tradeDate = row[2] || '';
-					const quantity = row[3] || '';
-					const tradePrice = row[4] || '';
-					const tradeMoney = row[5] || '';
-					const buySell = row[6] || '';
+					const description = row[2] || '';
+					const transactionType = row[3] || '';
+					const quantity = row[4] || '';
+					const priceStr = row[5] || '';
+					const grossAmount = row[6] || '';
+					const commission = row[7] || '';
 					
 					console.log('Processing row:', {
-						tradeId, symbol, tradeDate, quantity, tradePrice, tradeMoney, buySell
+						date, symbol, description, transactionType, quantity, priceStr, grossAmount, commission
 					});
 					
-					// Import BOTH BUY and SELL as separate trades
-					// User will need to manually adjust Position Type and connect related trades
+					// Clean price (remove "USD" and spaces)
+					const cleanPrice = parseFloat(priceStr.toString().replace(/[^\d.-]/g, ''));
 					
-					// Determine position type and quantity based on BUY/SELL
-					let positionType, finalQuantity;
+					// Clean commission (handle both numbers and strings)
+					const cleanCommission = Math.abs(parseFloat(commission.toString().replace(/[^\d.-]/g, '')) || 0);
 					
-					if (buySell.trim() === 'BUY') {
-						positionType = 'Long';
-						finalQuantity = Math.abs(parseInt(quantity)) || 0;
-					} else if (buySell.trim() === 'SELL') {
-						// For SELL, assume SHORT position unless quantity is negative
-						const rawQuantity = parseInt(quantity) || 0;
-						if (rawQuantity < 0) {
-							// Negative quantity with SELL might be closing a LONG position
-							positionType = 'Long'; // User needs to verify and possibly close existing trade
-							finalQuantity = Math.abs(rawQuantity);
-						} else {
-							// Positive quantity with SELL is likely a SHORT position
-							positionType = 'Short';
-							finalQuantity = Math.abs(rawQuantity);
-						}
+					// Only import BUY orders (entries) and ignore SELL orders for now
+					if (transactionType.trim() === 'Buy') {
+						const trade = {
+							id: Date.now() + Math.random(),
+							symbol: symbol.toUpperCase().trim(),
+							entryDate: date, // Already in YYYY-MM-DD format!
+							entryPrice: cleanPrice,
+							quantity: Math.abs(parseInt(quantity)) || 0,
+							positionType: 'Long',
+							entryType: 'IBKR Import',
+							initialStop: 0, // User needs to fill this manually
+							currentStop: 0,
+							limitPrice: null,
+							exitDate: null,
+							exitPrice: null,
+							fees: cleanCommission,
+							notes: `IBKR: ${description} | Commission: $${cleanCommission}`
+						};
+						
+						console.log('Creating trade:', trade);
+						trades.push(trade);
+						importedCount++;
 					}
-					
-					const trade = {
-						id: Date.now() + Math.random(),
-						symbol: symbol.toUpperCase().trim(),
-						entryDate: convertDateFormat(tradeDate), // Convert YYYYMMDD to YYYY-MM-DD
-						entryPrice: parseFloat(tradePrice) || 0,
-						quantity: finalQuantity,
-						positionType: positionType,
-						entryType: 'Import',
-						initialStop: 0, // User needs to fill this manually
-						currentStop: 0,
-						limitPrice: null,
-						exitDate: null,
-						exitPrice: null,
-						fees: 0,
-						notes: `Imported ${buySell} - TradeID: ${tradeId} - VERIFY Position Type!`
-					};
-					
-					console.log('Creating trade:', trade);
-					trades.push(trade);
-					importedCount++;
 				});
 				
 				if (importedCount > 0) {
 					updateAccountDisplay();
 					displayTrades();
 					saveDataLocally();
-					showToast(`יובאו ${importedCount} טריידים! בדוק Position Type ו-Initial Stop ידנית 📝`, 'success');
+					showToast(`יובאו ${importedCount} טריידים מ-IBKR! 🎉`, 'success');
 				} else {
-					showToast('לא נמצאו טריידים לייבוא. בדוק את הנתונים בטבלה.', 'warning');
+					showToast('לא נמצאו טריידים מסוג Buy לייבוא. בדוק את הנתונים בטבלה.', 'warning');
 				}
 				
 			} catch (error) {
