@@ -2606,6 +2606,23 @@
 
 
 		async function setupImportTable() {
+			try {
+				// First, rename the default sheet to "Broker Data"
+				await gapi.client.sheets.spreadsheets.batchUpdate({
+					spreadsheetId: import_spreadsheet_id,
+					resource: {
+						requests: [{
+							updateSheetProperties: {
+								properties: {
+									sheetId: 0, // Default sheet ID
+									title: "Broker Data"
+								},
+								fields: "title"
+							}
+						}]
+					}
+				});
+				
 			// New IBKR format instructions
 			const instructions = [
 				['📋 הוראות חדשות:', 'העתק נתונים מ-IBKR החל משורה 7 (מתחת לכותרות)'],
@@ -2627,6 +2644,10 @@
 			
 			// Format instruction rows (1-3) with background color
 			await formatInstructionRows();
+			
+			} catch (error) {
+				console.error('Error setting up import table:', error);
+			}
 		}
 
 
