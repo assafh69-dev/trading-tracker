@@ -1031,6 +1031,9 @@
 					<button class="btn btn-success" onclick="refreshMarketPrices()">
 						🔄 עדכן מחירים מהשוק
 					</button>
+					<button class="btn btn-danger" onclick="clearAllTrades()" style="margin-left: 15px;">
+						🗑️ מחק כל הטריידים
+					</button>
 					<span id="priceUpdateStatus" style="margin-right: 15px; font-weight: bold;"></span>
 				</div>
                 <div style="overflow-x: auto;">
@@ -2836,6 +2839,40 @@
 				showToast('שגיאה בעדכון מחירים מהשוק', 'error');
 			}
 		}
+		
+		function clearAllTrades() {
+			// Double confirmation for safety
+			const firstConfirm = confirm(
+				"❌ האם אתה בטוח שברצונך למחוק את כל הטריידים?\n\n" +
+				"פעולה זו תמחק את כל הנתונים ולא ניתן לבטל אותה!"
+			);
+			
+			if (!firstConfirm) return;
+			
+			const secondConfirm = confirm(
+				"⚠️ אישור סופי!\n\n" +
+				`יימחקו ${trades.length} טריידים לחלוטין.\n\n` +
+				"האם להמשיך?"
+			);
+			
+			if (!secondConfirm) return;
+			
+			// Clear all trades
+			trades = [];
+			
+			// Update displays
+			updateAccountDisplay();
+			displayTrades();
+			saveDataLocally();
+			
+			// Save to Google Sheets if connected
+			if (access_token && spreadsheet_id) {
+				saveToGoogleSheets();
+			}
+			
+			showToast('🗑️ כל הטריידים נמחקו בהצלחה', 'success');
+		}
+
 		
 		async function checkAndMigrateSpreadsheet() {
 			if (!access_token || !spreadsheet_id) return;
