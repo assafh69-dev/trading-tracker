@@ -410,7 +410,7 @@
         }
 
         .risk-active {
-            color: #c0392b;
+            color: #b7950b;
             font-weight: bold;
         }
 
@@ -730,6 +730,45 @@
 				text-align: center !important;
 				border: 2px solid #ddd !important;
 				border-radius: 8px !important;
+			}
+		}
+
+		/* Statistics Cards - Smaller and Better for Mobile */
+		@media (max-width: 768px) {
+			.stats-grid {
+				grid-template-columns: 1fr 1fr !important; /* Two columns like account summary */
+				gap: 10px !important;
+				margin-top: 15px !important;
+			}
+			
+			.stat-card {
+				padding: 15px !important; /* Much smaller padding */
+				border-radius: 10px !important;
+				min-height: auto !important;
+			}
+			
+			.stat-card h4 {
+				font-size: 12px !important; /* Smaller title */
+				margin-bottom: 5px !important;
+				opacity: 0.9 !important;
+			}
+			
+			.stat-card .value {
+				font-size: 18px !important; /* Much smaller than 1.8em */
+				font-weight: bold !important;
+				text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3) !important;
+				margin: 0 !important;
+			}
+		}
+
+		/* Also improve stats for desktop - make them less overwhelming */
+		@media (min-width: 769px) {
+			.stat-card {
+				padding: 18px !important;
+			}
+			
+			.stat-card .value {
+				font-size: 1.4em !important; /* Smaller than current 1.8em */
 			}
 		}
 
