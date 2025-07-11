@@ -2219,12 +2219,20 @@
 
 			if (activeRiskPercent > maxRisk) {
 				riskSettingsDiv.classList.add('risk-exceeded');
-				document.getElementById('activeRiskPercentDisplay').style.color = '#c0392b';
+				// שדה האחוזים
+				document.getElementById('activeRiskPercentDisplay').style.color = '#dc3545';
 				document.getElementById('activeRiskPercentDisplay').style.fontWeight = 'bold';
+				// שדה הסכום - הוסף את זה!
+				document.getElementById('activeRiskDisplay').style.color = '#dc3545';
+				document.getElementById('activeRiskDisplay').style.fontWeight = 'bold';
 			} else {
 				riskSettingsDiv.classList.remove('risk-exceeded');
+				// שדה האחוזים
 				document.getElementById('activeRiskPercentDisplay').style.color = '';
 				document.getElementById('activeRiskPercentDisplay').style.fontWeight = '';
+				// שדה הסכום - הוסף את זה!
+				document.getElementById('activeRiskDisplay').style.color = '';
+				document.getElementById('activeRiskDisplay').style.fontWeight = '';
 			}
 			
 			// בדיקת מזומן שלילי
