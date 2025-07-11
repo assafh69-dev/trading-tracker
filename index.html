@@ -634,6 +634,32 @@
 			}
 		}
 		
+		/* Account Summary - Much Smaller for Mobile */
+		@media (max-width: 768px) {
+			.account-summary {
+				grid-template-columns: 1fr 1fr !important; /* Two columns instead of auto-fit */
+				gap: 8px !important;
+				margin: 10px 0 !important;
+			}
+			
+			.account-item {
+				padding: 8px 10px !important; /* Much smaller padding */
+				min-height: auto !important;
+			}
+			
+			.account-item h4 {
+				font-size: 11px !important; /* Much smaller text */
+				margin: 0 0 3px 0 !important;
+				font-weight: normal !important;
+			}
+			
+			.account-item .value {
+				font-size: 16px !important; /* Reasonable size instead of huge */
+				font-weight: bold !important;
+				margin: 0 !important;
+			}
+		}
+
 		/* Notes column wider */
 		.trades-table th:nth-child(16), 
 		.trades-table td:nth-child(16) {
