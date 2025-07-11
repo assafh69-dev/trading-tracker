@@ -2564,70 +2564,43 @@
 		let import_spreadsheet_id = localStorage.getItem('import_spreadsheet_id') || null;
 
 		async function createImportTable() {
-			if (!access_token) {
-				showToast('התחבר תחילה ל-Google Sheets', 'warning');
-				return;
-			}
-			
-			// Check if we already have an import table
-			if (import_spreadsheet_id) {
-				try {
-					// Test if the existing table still exists
-					await gapi.client.sheets.spreadsheets.get({
-						spreadsheetId: import_spreadsheet_id
-					});
-					
-					// If we get here, table exists - just open it
-					window.open(`https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`, '_blank');
-					showToast('פתח טבלת ייבוא קיימת!', 'success');
-					return;
-				} catch (error) {
-					// Table doesn't exist anymore, create new one
-					console.log('Previous import table not found, creating new one');
-					import_spreadsheet_id = null;
-					localStorage.removeItem('import_spreadsheet_id');
-				}
-			}
-			
 			try {
-				showToast('יוצר טבלת ייבוא...', 'success');
+				// First, check if we have a table from TODAY
+				const storedId = localStorage.getItem('import_spreadsheet_id');
+				const storedDate = localStorage.getItem('import_table_date');
+				const today = new Date().toISOString().split('T')[0];
 				
-				// Create new spreadsheet for import
-				const response = await gapi.client.request({
-					path: 'https://sheets.googleapis.com/v4/spreadsheets',
-					method: 'POST',
-					headers: {
-						'Authorization': `Bearer ${access_token}`,
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						properties: {
-							title: 'Trading Import Table - ' + new Date().toISOString().split('T')[0]
-						},
-						sheets: [{
-							properties: {
-								title: 'Broker Data'
-							}
-						}]
-					})
+				if (storedId && storedDate === today) {
+					// We have a table from today - open it!
+					import_spreadsheet_id = storedId;
+					const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`;
+					window.open(spreadsheetUrl, '_blank');
+					showToast('🔗 נפתחת טבלת הייבוא מהיום', 'success');
+					return;
+				}
+				
+				// No table from today - create new one
+				showToast('🆕 יוצר טבלת ייבוא חדשה...', 'info');
+				
+				const tableName = `Broker Import Helper ${today}`;
+				const response = await gapi.client.sheets.spreadsheets.create({
+					properties: { title: tableName }
 				});
 				
 				import_spreadsheet_id = response.result.spreadsheetId;
-				
-				// Save the ID so it persists after refresh
 				localStorage.setItem('import_spreadsheet_id', import_spreadsheet_id);
+				localStorage.setItem('import_table_date', today); // Remember the date!
 				
-				// Add headers and formulas
 				await setupImportTable();
 				
-				// Open the spreadsheet
-				window.open(`https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`, '_blank');
+				const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`;
+				window.open(spreadsheetUrl, '_blank');
 				
-				showToast('טבלת ייבוא נוצרה! העתק נתונים מהברוקר ולחץ "ייבא"', 'success');
+				showToast('✅ טבלה חדשה נוצרה!', 'success');
 				
 			} catch (error) {
-				console.error('Error creating import table:', error);
-				showToast('שגיאה ביצירת טבלת ייבוא', 'error');
+				console.error('Error:', error);
+				showToast('שגיאה', 'error');
 			}
 		}
 
