@@ -2561,46 +2561,36 @@
 		}
 		
 		
-		let import_spreadsheet_id = localStorage.getItem('import_spreadsheet_id') || null;
+		let import_spreadsheet_id = null;
 
 		async function createImportTable() {
 			try {
-				// First, check if we have a table from TODAY
-				const storedId = localStorage.getItem('import_spreadsheet_id');
-				const storedDate = localStorage.getItem('import_table_date');
+				showToast('🆕 יוצר טבלת ייבוא חדשה במבנה IBKR...', 'info');
+				
+				// ALWAYS create NEW table - no checking old ones!
 				const today = new Date().toISOString().split('T')[0];
-				
-				if (storedId && storedDate === today) {
-					// We have a table from today - open it!
-					import_spreadsheet_id = storedId;
-					const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`;
-					window.open(spreadsheetUrl, '_blank');
-					showToast('🔗 נפתחת טבלת הייבוא מהיום', 'success');
-					return;
-				}
-				
-				// No table from today - create new one
-				showToast('🆕 יוצר טבלת ייבוא חדשה...', 'info');
-				
 				const tableName = `Broker Import Helper ${today}`;
+				
 				const response = await gapi.client.sheets.spreadsheets.create({
-					properties: { title: tableName }
+					properties: {
+						title: tableName
+					}
 				});
 				
 				import_spreadsheet_id = response.result.spreadsheetId;
 				localStorage.setItem('import_spreadsheet_id', import_spreadsheet_id);
-				localStorage.setItem('import_table_date', today); // Remember the date!
 				
+				// Setup the table content
 				await setupImportTable();
 				
 				const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`;
 				window.open(spreadsheetUrl, '_blank');
 				
-				showToast('✅ טבלה חדשה נוצרה!', 'success');
+				showToast('✅ טבלת IBKR חדשה נוצרה! העתק נתונים ולחץ "ייבא"', 'success');
 				
 			} catch (error) {
-				console.error('Error:', error);
-				showToast('שגיאה', 'error');
+				console.error('Error creating import table:', error);
+				showToast('שגיאה ביצירת טבלת ייבוא: ' + error.message, 'error');
 			}
 		}
 
