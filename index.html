@@ -695,6 +695,43 @@
 				border-radius: 8px !important;
 			}
 		}
+		
+		/* Fix Account Settings alignment specifically */
+		@media (max-width: 768px) {
+			.account-settings {
+				display: flex !important;
+				flex-direction: column !important;
+				align-items: center !important;
+				text-align: center !important;
+				gap: 10px !important;
+				padding: 15px !important;
+			}
+			
+			.account-settings .account-input {
+				display: flex !important;
+				flex-direction: column !important;
+				align-items: center !important;
+				width: 100% !important;
+				max-width: 280px !important;
+				margin: 5px 0 !important;
+			}
+			
+			.account-settings .account-input label {
+				margin-bottom: 5px !important;
+				font-weight: bold !important;
+				font-size: 14px !important;
+				text-align: center !important;
+			}
+			
+			.account-settings .account-input input {
+				width: 100% !important;
+				padding: 10px !important;
+				font-size: 16px !important;
+				text-align: center !important;
+				border: 2px solid #ddd !important;
+				border-radius: 8px !important;
+			}
+		}
 
 		/* Notes column wider */
 		.trades-table th:nth-child(16), 
