@@ -506,132 +506,139 @@
             }
         }
 		
-		/* Toast notifications */
+	/* Toast notifications */
+	.toast-container {
+		position: fixed;
+		top: 20px;
+		right: 20px;
+		z-index: 1000;
+		max-width: 300px;
+	}
+
+	.toast {
+		background: linear-gradient(45deg, #2c3e50, #3498db);
+		color: white;
+		padding: 15px 20px;
+		border-radius: 8px;
+		margin-bottom: 10px;
+		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+		transform: translateX(400px);
+		opacity: 0;
+		transition: all 0.3s ease;
+		border-right: 4px solid #27ae60;
+		font-weight: bold;
+	}
+
+	.toast.success {
+		border-right-color: #27ae60;
+		background: linear-gradient(45deg, #27ae60, #2ecc71);
+	}
+
+	.toast.error {
+		border-right-color: #e74c3c;
+		background: linear-gradient(45deg, #e74c3c, #c0392b);
+	}
+
+	.toast.warning {
+		border-right-color: #f39c12;
+		background: linear-gradient(45deg, #f39c12, #e67e22);
+	}
+
+	.toast.show {
+		transform: translateX(0);
+		opacity: 1;
+	}
+
+	@media (max-width: 768px) {
 		.toast-container {
-			position: fixed;
-			top: 20px;
-			right: 20px;
-			z-index: 1000;
-			max-width: 300px;
+			left: 10px;
+			right: 10px;
+			top: 10px;
+			max-width: none;
 		}
-
+		
 		.toast {
-			background: linear-gradient(45deg, #2c3e50, #3498db);
-			color: white;
-			padding: 15px 20px;
-			border-radius: 8px;
-			margin-bottom: 10px;
-			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-			transform: translateX(400px);
-			opacity: 0;
-			transition: all 0.3s ease;
-			border-right: 4px solid #27ae60;
-			font-weight: bold;
+			transform: translateY(-100px);
 		}
-
-		.toast.success {
-			border-right-color: #27ae60;
-			background: linear-gradient(45deg, #27ae60, #2ecc71);
-		}
-
-		.toast.error {
-			border-right-color: #e74c3c;
-			background: linear-gradient(45deg, #e74c3c, #c0392b);
-		}
-
-		.toast.warning {
-			border-right-color: #f39c12;
-			background: linear-gradient(45deg, #f39c12, #e67e22);
-		}
-
+		
 		.toast.show {
-			transform: translateX(0);
-			opacity: 1;
+			transform: translateY(0);
 		}
-
-		@media (max-width: 768px) {
-			.toast-container {
-				left: 10px;
-				right: 10px;
-				top: 10px;
-				max-width: none;
-			}
-			
-			.toast {
-				transform: translateY(-100px);
-			}
-			
-			.toast.show {
-				transform: translateY(0);
-			}
-		}
+	}
 
 		
-		/* הוסף כאן את הקוד החדש: */
-		.settings-toggle {
-			background: #3498db;
-			color: white;
-			padding: 10px 20px;
-			border: none;
-			border-radius: 8px;
-			cursor: pointer;
-			font-size: 16px;
-			font-weight: bold;
-			margin: 10px 0;
-			width: 100%;
-			text-align: center;
-		}
+	/* הוסף כאן את הקוד החדש: */
+	.settings-toggle {
+		background: #3498db;
+		color: white;
+		padding: 10px 20px;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		font-size: 16px;
+		font-weight: bold;
+		margin: 10px 0;
+		width: 100%;
+		text-align: center;
+	}
 
-		.settings-toggle:hover {
-			background: #2980b9;
-		}
+	.settings-toggle:hover {
+		background: #2980b9;
+	}
 
-		.settings-collapsible {
-			display: none;
-			animation: slideDown 0.3s ease;
-		}
+	.settings-collapsible {
+		display: none;
+		animation: slideDown 0.3s ease;
+	}
 
-		.settings-collapsible.active {
-			display: block;
-		}
+	.settings-collapsible.active {
+		display: block;
+	}
 
-		@keyframes slideDown {
-			from { opacity: 0; transform: translateY(-10px); }
-			to { opacity: 1; transform: translateY(0); }
+	@keyframes slideDown {
+		from { opacity: 0; transform: translateY(-10px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+	
+	
+	/* Add this CSS to make the Notes column wider */
+	.trades-table th:nth-child(16), 
+	.trades-table td:nth-child(16) {
+		min-width: 200px;
+		max-width: 300px;
+		word-wrap: break-word;
+		white-space: normal;
+	}
+
+	/* Also make the Notes input in edit mode wider */
+	.trades-table input[type="text"]:nth-child(16) {
+		min-width: 180px;
+	}
+	
+	/* Mobile Tabs Fix */
+	@media (max-width: 768px) {
+		.tabs {
+			overflow-x: auto;
+			white-space: nowrap;
+			-webkit-overflow-scrolling: touch;
+			scrollbar-width: thin;
 		}
 		
-		
-		/* Add this CSS to make the Notes column wider */
-		.trades-table th:nth-child(16), 
-		.trades-table td:nth-child(16) {
-			min-width: 200px;
-			max-width: 300px;
-			word-wrap: break-word;
-			white-space: normal;
+		.tab {
+			min-width: 80px;
+			flex-shrink: 0;
+			font-size: 14px;
+			padding: 12px 15px;
 		}
-
-		/* Also make the Notes input in edit mode wider */
-		.trades-table input[type="text"]:nth-child(16) {
-			min-width: 180px;
-		}
-		
-		/* Mobile Tabs Fix */
-		@media (max-width: 768px) {
-			.tabs {
-				overflow-x: auto;
-				white-space: nowrap;
-				-webkit-overflow-scrolling: touch;
-				scrollbar-width: thin;
-			}
-			
-			.tab {
-				min-width: 80px;
-				flex-shrink: 0;
-				font-size: 14px;
-				padding: 12px 15px;
-			}
-		}
-		
+	}
+	/* Wider Notes Column */
+	.trades-table th:nth-child(16), 
+	.trades-table td:nth-child(16) {
+	    min-width: 200px;
+	    max-width: 300px;
+	    word-wrap: break-word;
+	    white-space: normal;
+	}
     </style>
 </head>
 <body>
