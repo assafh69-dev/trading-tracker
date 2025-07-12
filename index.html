@@ -1419,7 +1419,7 @@
 			try {
 				showToast('שומר נתונים...', 'success');
 				
-				// Prepare data
+				// Prepare data (only columns A-N, excluding Market Price column)
 				const values = trades.map(trade => [
 					trade.id,
 					trade.symbol,
@@ -1434,30 +1434,39 @@
 					trade.exitPrice || '',
 					trade.fees,
 					trade.notes,
-					trade.createdAt,     // ← תיקון: createdAt במקום entryType
-					trade.marketPrice || ''  // ← תיקון: marketPrice
+					trade.createdAt || new Date().toISOString().split('T')[0]
 				]);
 				
-				// Clear existing data and add new
+				// Clear existing data (only columns A-N, NOT touching column O)
 				await gapi.client.sheets.spreadsheets.values.clear({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!A2:O1000'
+					range: 'Trades!A2:N1000'  // Only A-N, leave O untouched
 				});
 				
+				// Save data (only columns A-N)
 				if (values.length > 0) {
 					await gapi.client.sheets.spreadsheets.values.update({
 						spreadsheetId: spreadsheet_id,
-						range: 'Trades!A2',
+						range: 'Trades!A2:N' + (values.length + 1),
 						valueInputOption: 'RAW',
 						values: values
 					});
 				}
 				
-				showToast(`נשמרו ${trades.length} טריידים בענן!`, 'success');
+				// Fix ALL Google Finance formulas in column O (entire column)
+				await gapi.client.sheets.spreadsheets.values.update({
+					spreadsheetId: spreadsheet_id,
+					range: 'Trades!O2:O1000',
+					valueInputOption: 'USER_ENTERED',  // Important for formulas
+					values: Array(999).fill(['=IF(OR(ISBLANK(J2), J2="", LEN(TRIM(J2))=0), IFERROR(GOOGLEFINANCE(B2), "N/A"), K2)'])
+				});
+				
+				console.log('Fixed Google Finance formulas for entire column O');
+				showToast('נתונים נשמרו בענן בהצלחה!', 'success');
 				
 			} catch (error) {
 				console.error('Error saving to Google Sheets:', error);
-				showToast('שגיאה בשמירה', 'error');
+				showToast('שגיאה בשמירה בענן', 'error');
 			}
 		}
 		
