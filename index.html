@@ -1385,23 +1385,23 @@
 			const headers = [
 				'ID', 'Symbol', 'Entry Date', 'Entry Price', 'Quantity', 'Position Type',
 				'Initial Stop', 'Current Stop', 'Limit Price', 'Exit Date', 'Exit Price',
-				'Fees', 'Notes', 'Entry Type', 'Created At', 'Market Price'
+				'Fees', 'Notes', 'Created At', 'Market Price'
 			];
 			
 			try {
 				// Add headers row
 				await gapi.client.sheets.spreadsheets.values.update({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!A1:P1',
+					range: 'Trades!A1:O1',  // ← תיקון: O במקום P
 					valueInputOption: 'RAW',
 					values: [headers]
 				});
 				
-				// Add the Google Finance formula to column P starting from row 2
+				// Add Google Finance formulas WITHOUT the ' prefix
 				await gapi.client.sheets.spreadsheets.values.update({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!P2:P1000',
-					valueInputOption: 'USER_ENTERED', // Important: USER_ENTERED for formulas
+					range: 'Trades!O2:O1000',  // ← תיקון: O במקום P
+					valueInputOption: 'USER_ENTERED',  // ← זה חשוב!
 					values: Array(999).fill(['=IF(OR(ISBLANK(J2), J2="", LEN(TRIM(J2))=0), IFERROR(GOOGLEFINANCE(B2), "N/A"), K2)'])
 				});
 				
@@ -1584,7 +1584,7 @@
 				
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!A2:O1000' // O = 15 עמודות (לא P = 16)
+					range: 'Trades!A2:P1000' // O = 15 עמודות (לא P = 16)
 				});
 				
 				const values = response.result.values || [];
