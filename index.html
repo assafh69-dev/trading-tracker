@@ -2583,11 +2583,10 @@
 
 		async function createImportTable() {
 			try {
-				showToast('🆕 יוצר טבלת ייבוא חדשה במבנה IBKR...', 'info');
+				showToast('🆕 יוצר טבלת ייבוא FIFO...', 'info');
 				
-				// ALWAYS create NEW table - no checking old ones!
 				const today = new Date().toISOString().split('T')[0];
-				const tableName = `Broker Import Helper ${today}`;
+				const tableName = `FIFO Broker Import ${today}`;
 				
 				const response = await gapi.client.sheets.spreadsheets.create({
 					properties: {
@@ -2598,43 +2597,74 @@
 				import_spreadsheet_id = response.result.spreadsheetId;
 				localStorage.setItem('import_spreadsheet_id', import_spreadsheet_id);
 				
-				// Setup the table content
 				await setupImportTable();
 				
 				const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${import_spreadsheet_id}`;
 				window.open(spreadsheetUrl, '_blank');
 				
-				showToast('✅ טבלת IBKR חדשה נוצרה! העתק נתונים ולחץ "ייבא"', 'success');
+				showToast('✅ טבלת FIFO חדשה נוצרה!', 'success');
 				
 			} catch (error) {
-				console.error('Error creating import table:', error);
-				showToast('שגיאה ביצירת טבלת ייבוא: ' + error.message, 'error');
+				console.error('Create table error:', error);
+				showToast('שגיאה ביצירת הטבלה', 'error');
 			}
 		}
 
 
 		async function setupImportTable() {
 			try {
-				console.log('Setting up import table...');
+				// Headers with instructions
+				const headerData = [
+					['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID'],
+					[],
+					['📋 FIFO IMPORT INSTRUCTIONS', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+					['1. Paste your complete IBKR Flex Query data starting from row 7', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+					['2. System will group executions by IBOrderID into separate trades', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+					['3. FIFO logic will match sells to oldest buys automatically', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+					['4. Click "Import FIFO Data" when ready', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+				];
 				
-				// Try to add just headers first
-				const response = await gapi.client.sheets.spreadsheets.values.update({
+				await gapi.client.sheets.spreadsheets.values.update({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Sheet1!A1:S1', // Use Sheet1 instead of "Broker Data"
+					range: 'Sheet1!A1:S7',
 					valueInputOption: 'RAW',
 					resource: {
-						values: [
-							['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID']
+						values: headerData
+					}
+				});
+				
+				// Add nice formatting
+				await gapi.client.sheets.spreadsheets.batchUpdate({
+					spreadsheetId: import_spreadsheet_id,
+					resource: {
+						requests: [
+							{
+								repeatCell: {
+									range: {
+										startRowIndex: 2,
+										endRowIndex: 7,
+										startColumnIndex: 0,
+										endColumnIndex: 19
+									},
+									cell: {
+										userEnteredFormat: {
+											backgroundColor: { red: 0.9, green: 0.95, blue: 1.0 },
+											textFormat: { bold: true, fontSize: 10 }
+										}
+									},
+									fields: 'userEnteredFormat(backgroundColor,textFormat)'
+								}
+							}
 						]
 					}
 				});
 				
-				console.log('✅ Headers added successfully');
-				showToast('✅ הטבלה מוכנה - הדבק נתונים בשורה 2!', 'success');
+				console.log('✅ FIFO import table setup complete');
 				
 			} catch (error) {
 				console.error('Setup error:', error);
-				showToast('ההגדרה נכשלה - הוסף כותרות ידנית', 'warning');
+				// Don't fail completely - table still works
+				console.log('Table created but formatting failed - still usable');
 			}
 		}
 
@@ -2799,7 +2829,7 @@
 				// Read all 19 columns from the CSV data you pasted
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Sheet1!A2:S1000' // All 19 columns from row 2
+					range: 'Sheet1!A7:S1000' // Back to row 7 with instructions
 				});
 				
 				const rawData = response.result.values || [];
