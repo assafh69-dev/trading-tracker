@@ -1087,7 +1087,7 @@
 				<h4 style="text-align: center; color: #2c3e50;">📊 ייבוא מברוקר</h4>
 				<div style="text-align: center;">
 					<button class="btn btn-warning" onclick="createImportTable()">🔄 יצור טבלת ייבוא</button>
-					<button class="btn btn-success" onclick="importFromBroker()">📥 ייבא מטבלת ההמרה</button>
+					<button class="btn btn-success" onclick="importFIFOBrokerData()">📥 ייבא נתונים FIFO</button>
 				</div>
 				<p style="text-align: center; font-size: 12px; color: #666; margin-top: 10px;">
 					יצור טבלה ריקה להעתקת נתונים מהברוקר, ואז ייבא אותם לתוכנית
@@ -2579,7 +2579,7 @@
 		}
 		
 		
-		let import_spreadsheet_id = null;
+		let import_spreadsheet_id = localStorage.getItem('import_spreadsheet_id') || null;
 
 		async function createImportTable() {
 			try {
@@ -2614,47 +2614,61 @@
 
 
 		async function setupImportTable() {
+			const batchData = [
+				{
+					range: 'Broker Data!A1:S6',
+					values: [
+						// All 19 columns from IBKR CSV
+						['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID'],
+						
+						// Instructions
+						[],
+						['📋 FIFO IMPORT - Paste your IBKR data starting from row 7', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+						['✅ All 19 columns supported - just copy/paste from CSV', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+						['🧠 System will automatically group by IBOrderID and apply FIFO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+						['🚀 Click "Import FIFO Data" when ready', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+					]
+				}
+			];
+			
 			try {
-				// First, rename the default sheet to "Broker Data"
-				await gapi.client.sheets.spreadsheets.batchUpdate({
+				await gapi.client.sheets.spreadsheets.values.batchUpdate({
 					spreadsheetId: import_spreadsheet_id,
 					resource: {
-						requests: [{
-							updateSheetProperties: {
-								properties: {
-									sheetId: 0,
-									title: "Broker Data"
-								},
-								fields: "title"
-							}
-						}]
+						valueInputOption: 'RAW',
+						data: batchData
 					}
 				});
 				
-				// New IBKR format instructions - הוראות בעמודה F
-				const instructions = [
-					['', '', '', '', '', '📋 הוראות חדשות: העתק נתונים מ-IBKR החל משורה 7', '', ''],
-					['', '', '', '', '', '💡 פורמט IBKR: Date | Symbol | Description | Transaction Type | Quantity | Price | Gross Amount | Commission', '', ''],
-					['', '', '', '', '', '✅ טיפ: לחץ "ייבא" באפליקציה לאחר ההעתקה', '', ''],
-					['', '', '', '', '', 'שורה לדוגמה:', '', ''],
-					['2025-07-10', 'AAPL', 'APPLE INC', 'Buy', '100', '150.50 USD', '-15050.00', '-1.5'],
-					['', '', '', '', '', '', '', ''], 
-					['Date', 'Symbol', 'Description', 'Transaction Type', 'Quantity', 'Price', 'Gross Amount', 'Commission']
-				];
-				
-				// Add all content - 8 columns, 7 rows
-				await gapi.client.sheets.spreadsheets.values.update({
+				// Format instruction rows with nice colors
+				await gapi.client.sheets.spreadsheets.batchUpdate({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Broker Data!A1:H7',
-					valueInputOption: 'RAW',
-					values: instructions
+					resource: {
+						requests: [
+							{
+								repeatCell: {
+									range: {
+										startRowIndex: 2,
+										endRowIndex: 6,
+										startColumnIndex: 0,
+										endColumnIndex: 19 // All 19 columns
+									},
+									cell: {
+										userEnteredFormat: {
+											backgroundColor: { red: 0.9, green: 0.95, blue: 1.0 },
+											textFormat: { bold: true }
+										}
+									},
+									fields: 'userEnteredFormat(backgroundColor,textFormat)'
+								}
+							}
+						]
+					}
 				});
 				
-				// Format instruction rows and headers
-				await formatInstructionRows();
-				
 			} catch (error) {
-				console.error('Error setting up import table:', error);
+				console.error('Setup error:', error);
+				showToast('שגיאה בהגדרת הטבלה', 'error');
 			}
 		}
 
@@ -2804,6 +2818,222 @@
 				console.error('Error importing data:', error);
 				showToast('שגיאה בייבוא נתונים: ' + error.message, 'error');
 			}
+		}
+		
+		
+		async function importFIFOBrokerData() {
+			if (!import_spreadsheet_id) {
+				showToast('יש ליצור תחילה טבלת ייבוא', 'warning');
+				return;
+			}
+			
+			try {
+				showToast('🧠 מייבא ומעבד נתונים לפי FIFO...', 'info');
+				
+				// Read all 19 columns from the CSV data you pasted
+				const response = await gapi.client.sheets.spreadsheets.values.get({
+					spreadsheetId: import_spreadsheet_id,
+					range: 'Broker Data!A7:S1000' // All 19 columns from row 7
+				});
+				
+				const rawData = response.result.values || [];
+				console.log('📊 Raw executions read:', rawData.length);
+				
+				if (rawData.length === 0) {
+					showToast('לא נמצאו נתונים בטבלת הייבוא', 'warning');
+					return;
+				}
+				
+				// Parse executions from your IBKR format
+				const executions = rawData
+					.filter(row => row[1] && row[7]) // Must have Symbol and Buy/Sell
+					.map(row => ({
+						tradeId: row[0],
+						symbol: (row[1] || '').toString().toUpperCase(),
+						tradeDate: parseInt(row[2]) || 0,
+						quantity: parseInt(row[3]) || 0,
+						tradePrice: parseFloat(row[4]) || 0,
+						buySell: (row[7] || '').toString().toUpperCase(),
+						commission: parseFloat(row[14]) || 0,
+						ibOrderId: row[18] || '',
+						orderTime: row[16] || '',
+						orderType: (row[12] || '').toString().toUpperCase()
+					}))
+					.filter(exec => exec.symbol && exec.buySell && exec.tradeDate);
+				
+				console.log('✅ Valid executions:', executions.length);
+				
+				if (executions.length === 0) {
+					showToast('לא נמצאו ביצועים תקינים', 'warning');
+					return;
+				}
+				
+				// Process FIFO logic
+				const result = processFIFOLogic(executions);
+				
+				// Add all trades to our system
+				result.forEach(trade => trades.push(trade));
+				
+				updateAccountDisplay();
+				displayTrades();
+				saveDataLocally();
+				
+				showToast(`🎉 יובאו ${result.length} טריידים לפי FIFO!`, 'success');
+				console.log(`✅ Import completed: ${result.length} logical trades created`);
+				
+			} catch (error) {
+				console.error('❌ FIFO Import error:', error);
+				showToast('שגיאה בייבוא FIFO', 'error');
+			}
+		}
+		
+		
+		function processFIFOLogic(executions) {
+			// Group by symbol
+			const symbolGroups = {};
+			executions.forEach(exec => {
+				if (!symbolGroups[exec.symbol]) {
+					symbolGroups[exec.symbol] = [];
+				}
+				symbolGroups[exec.symbol].push(exec);
+			});
+			
+			const allTrades = [];
+			
+			// Process each symbol separately
+			Object.entries(symbolGroups).forEach(([symbol, symbolExecs]) => {
+				console.log(`\n🔍 Processing ${symbol}:`);
+				
+				// Group by IBOrderID and sort by time
+				const orders = {};
+				symbolExecs.forEach(exec => {
+					const orderId = exec.ibOrderId;
+					if (!orders[orderId]) {
+						orders[orderId] = [];
+					}
+					orders[orderId].push(exec);
+				});
+				
+				// Convert to buy/sell orders
+				const buyOrders = [];
+				const sellOrders = [];
+				
+				Object.values(orders).forEach(orderExecs => {
+					const firstExec = orderExecs[0];
+					const totalQty = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.quantity), 0);
+					const totalCost = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.quantity * exec.tradePrice), 0);
+					const totalCommission = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.commission), 0);
+					const avgPrice = totalCost / totalQty;
+					
+					const order = {
+						symbol: firstExec.symbol,
+						date: firstExec.tradeDate,
+						quantity: totalQty,
+						price: avgPrice,
+						commission: totalCommission,
+						type: firstExec.buySell,
+						orderType: firstExec.orderType,
+						orderId: firstExec.ibOrderId
+					};
+					
+					if (firstExec.buySell === 'BUY') {
+						buyOrders.push(order);
+					} else {
+						sellOrders.push(order);
+					}
+				});
+				
+				// Sort chronologically
+				buyOrders.sort((a, b) => a.date - b.date);
+				sellOrders.sort((a, b) => a.date - b.date);
+				
+				console.log(`  📈 ${buyOrders.length} BUY orders, 📉 ${sellOrders.length} SELL orders`);
+				
+				// FIFO matching
+				const openPositions = [...buyOrders];
+				
+				sellOrders.forEach(sellOrder => {
+					let remainingSell = sellOrder.quantity;
+					
+					while (remainingSell > 0 && openPositions.length > 0) {
+						const oldestBuy = openPositions[0];
+						const closeQty = Math.min(remainingSell, oldestBuy.quantity);
+						
+						// Create completed trade
+						const grossPnl = (sellOrder.price - oldestBuy.price) * closeQty;
+						const totalCommission = (oldestBuy.commission * closeQty / oldestBuy.quantity) + 
+											  (sellOrder.commission * closeQty / sellOrder.quantity);
+						const netPnl = grossPnl - totalCommission;
+						
+						const exitType = sellOrder.orderType.includes('STP') ? 'Stop Loss' : 
+									   sellOrder.orderType.includes('LMT') ? 'Limit' : 'Manual';
+						
+						const trade = {
+							id: Date.now() + Math.random(),
+							symbol: symbol,
+							entryDate: convertDateFormat(oldestBuy.date),
+							entryPrice: parseFloat(oldestBuy.price.toFixed(4)),
+							quantity: closeQty,
+							positionType: 'Long',
+							entryType: 'FIFO Import',
+							initialStop: 0,
+							currentStop: 0,
+							limitPrice: null,
+							exitDate: convertDateFormat(sellOrder.date),
+							exitPrice: parseFloat(sellOrder.price.toFixed(4)),
+							fees: parseFloat(totalCommission.toFixed(2)),
+							realizedPnl: parseFloat(netPnl.toFixed(2)),
+							notes: `FIFO: ${oldestBuy.orderId}→${sellOrder.orderId} | ${exitType}`
+						};
+						
+						allTrades.push(trade);
+						console.log(`  ✅ Trade: ${closeQty} @ $${oldestBuy.price.toFixed(3)} → $${sellOrder.price.toFixed(3)} = $${netPnl.toFixed(2)}`);
+						
+						oldestBuy.quantity -= closeQty;
+						if (oldestBuy.quantity === 0) {
+							openPositions.shift();
+						}
+						
+						remainingSell -= closeQty;
+					}
+				});
+				
+				// Add remaining open positions
+				openPositions.forEach(buyOrder => {
+					if (buyOrder.quantity > 0) {
+						const trade = {
+							id: Date.now() + Math.random(),
+							symbol: symbol,
+							entryDate: convertDateFormat(buyOrder.date),
+							entryPrice: parseFloat(buyOrder.price.toFixed(4)),
+							quantity: buyOrder.quantity,
+							positionType: 'Long',
+							entryType: 'FIFO Import',
+							initialStop: 0,
+							currentStop: 0,
+							limitPrice: null,
+							exitDate: null,
+							exitPrice: null,
+							fees: parseFloat(buyOrder.commission.toFixed(2)),
+							realizedPnl: null,
+							notes: `Open: ${buyOrder.orderId} | ${buyOrder.orderType}`
+						};
+						
+						allTrades.push(trade);
+						console.log(`  🟡 Open: ${buyOrder.quantity} @ $${buyOrder.price.toFixed(3)}`);
+					}
+				});
+			});
+			
+			return allTrades;
+		}
+
+		function convertDateFormat(dateNum) {
+			const dateStr = dateNum.toString();
+			if (dateStr.length === 8) {
+				return `${dateStr.substr(0,4)}-${dateStr.substr(4,2)}-${dateStr.substr(6,2)}`;
+			}
+			return dateStr;
 		}
 
 		
