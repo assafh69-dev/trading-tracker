@@ -1453,12 +1453,18 @@
 					});
 				}
 				
-				// Fix ALL Google Finance formulas in column O (entire column)
+				// Fix Google Finance formulas with DYNAMIC row numbers
+				const formulas = [];
+				for (let i = 0; i < 999; i++) {
+					const rowNum = i + 2;  // Row 2, 3, 4, etc.
+					formulas.push([`=IF(OR(ISBLANK(J${rowNum}), J${rowNum}="", LEN(TRIM(J${rowNum}))=0), IFERROR(GOOGLEFINANCE(B${rowNum}), "N/A"), K${rowNum})`]);
+				}
+
 				await gapi.client.sheets.spreadsheets.values.update({
 					spreadsheetId: spreadsheet_id,
 					range: 'Trades!O2:O1000',
-					valueInputOption: 'USER_ENTERED',  // Important for formulas
-					values: Array(999).fill(['=IF(OR(ISBLANK(J2), J2="", LEN(TRIM(J2))=0), IFERROR(GOOGLEFINANCE(B2), "N/A"), K2)'])
+					valueInputOption: 'USER_ENTERED',
+					values: formulas
 				});
 				
 				console.log('Fixed Google Finance formulas for entire column O');
