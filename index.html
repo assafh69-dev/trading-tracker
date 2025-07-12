@@ -2824,12 +2824,12 @@
 			}
 			
 			try {
-				showToast('🧠 מייבא ומעבד נתונים לפי FIFO...', 'info');
+				showToast('🧠 מייבא נתונים פשוט ומדויק...', 'info');
 				
-				// Read all 19 columns from the CSV data you pasted
+				// Read all data from import table
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Sheet1!A7:S1000' // Back to row 7 with instructions
+					range: 'Sheet1!A7:S1000' // All 19 columns from row 7
 				});
 				
 				const rawData = response.result.values || [];
@@ -2840,7 +2840,7 @@
 					return;
 				}
 				
-				// Parse executions from your IBKR format
+				// Parse executions
 				const executions = rawData
 					.filter(row => row[1] && row[7]) // Must have Symbol and Buy/Sell
 					.map(row => ({
@@ -2849,11 +2849,14 @@
 						tradeDate: parseInt(row[2]) || 0,
 						quantity: parseInt(row[3]) || 0,
 						tradePrice: parseFloat(row[4]) || 0,
+						tradeMoney: parseFloat(row[5]) || 0,
+						fifoPnl: parseFloat(row[6]) || 0,
 						buySell: (row[7] || '').toString().toUpperCase(),
+						proceeds: parseFloat(row[8]) || 0,
 						commission: parseFloat(row[14]) || 0,
-						ibOrderId: row[18] || '',
-						orderTime: row[16] || '',
-						orderType: (row[12] || '').toString().toUpperCase()
+						orderType: (row[12] || '').toString().toUpperCase(),
+						description: row[13] || '',
+						ibOrderId: row[18] || ''
 					}))
 					.filter(exec => exec.symbol && exec.buySell && exec.tradeDate);
 				
@@ -2864,8 +2867,8 @@
 					return;
 				}
 				
-				// Process FIFO logic
-				const result = processFIFOLogic(executions);
+				// Process using simple broker P&L approach
+				const result = processSimpleBrokerData(executions);
 				
 				// Add all trades to our system
 				result.forEach(trade => trades.push(trade));
@@ -2874,155 +2877,228 @@
 				displayTrades();
 				saveDataLocally();
 				
-				showToast(`🎉 יובאו ${result.length} טריידים לפי FIFO!`, 'success');
-				console.log(`✅ Import completed: ${result.length} logical trades created`);
+				showToast(`🎉 יובאו ${result.length} טריידים מהברוקר!`, 'success');
+				console.log(`✅ Import completed: ${result.length} trades created`);
 				
 			} catch (error) {
-				console.error('❌ FIFO Import error:', error);
-				showToast('שגיאה בייבוא FIFO', 'error');
+				console.error('❌ Import error:', error);
+				showToast('שגיאה בייבוא נתונים', 'error');
 			}
 		}
 		
 		
-		function processFIFOLogic(executions) {
-			// Group by symbol
-			const symbolGroups = {};
-			executions.forEach(exec => {
-				if (!symbolGroups[exec.symbol]) {
-					symbolGroups[exec.symbol] = [];
-				}
-				symbolGroups[exec.symbol].push(exec);
-			});
+		function processSimpleBrokerData(executions) {
+			console.log('\n🎯 Processing broker data using FifoPnlRealized...');
 			
 			const allTrades = [];
 			
-			// Process each symbol separately
-			Object.entries(symbolGroups).forEach(([symbol, symbolExecs]) => {
-				console.log(`\n🔍 Processing ${symbol}:`);
-				
-				// Group by IBOrderID and sort by time
-				const orders = {};
-				symbolExecs.forEach(exec => {
-					const orderId = exec.ibOrderId;
-					if (!orders[orderId]) {
-						orders[orderId] = [];
-					}
-					orders[orderId].push(exec);
-				});
-				
-				// Convert to buy/sell orders
-				const buyOrders = [];
-				const sellOrders = [];
-				
-				Object.values(orders).forEach(orderExecs => {
-					const firstExec = orderExecs[0];
-					const totalQty = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.quantity), 0);
-					const totalCost = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.quantity * exec.tradePrice), 0);
-					const totalCommission = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.commission), 0);
-					const avgPrice = totalCost / totalQty;
+			executions.forEach(exec => {
+				if (exec.buySell === 'BUY') {
+					// Create open trade for each BUY
+					const trade = {
+						id: Date.now() + Math.random(),
+						symbol: exec.symbol,
+						entryDate: convertDateFormat(exec.tradeDate),
+						entryPrice: parseFloat(exec.tradePrice.toFixed(4)),
+						quantity: Math.abs(exec.quantity),
+						positionType: 'Long',
+						entryType: 'Broker Import',
+						initialStop: 0, // User needs to fill
+						currentStop: 0,
+						limitPrice: null,
+						exitDate: null,
+						exitPrice: null,
+						fees: parseFloat(Math.abs(exec.commission).toFixed(2)),
+						realizedPnl: null, // Open trade
+						notes: `Open: ${exec.ibOrderId} | ${exec.orderType}`
+					};
+					allTrades.push(trade);
+					console.log(`📈 Open: ${exec.symbol} ${exec.quantity} @ $${exec.tradePrice}`);
 					
-					const order = {
-						symbol: firstExec.symbol,
-						date: firstExec.tradeDate,
-						quantity: totalQty,
-						price: avgPrice,
-						commission: totalCommission,
-						type: firstExec.buySell,
-						orderType: firstExec.orderType,
-						orderId: firstExec.ibOrderId
+				} else if (exec.buySell === 'SELL' && exec.fifoPnl !== 0) {
+					// Create closed trade for each SELL with P&L
+					const exitType = exec.orderType.includes('STP') ? 'Stop Loss' : 
+								   exec.orderType.includes('LMT') ? 'Limit' : 'Manual';
+					
+					const trade = {
+						id: Date.now() + Math.random(),
+						symbol: exec.symbol,
+						entryDate: convertDateFormat(exec.tradeDate), // Same date for now
+						entryPrice: 0, // Will be calculated from broker data
+						quantity: Math.abs(exec.quantity),
+						positionType: 'Long',
+						entryType: 'Broker Import',
+						initialStop: 0,
+						currentStop: 0,
+						limitPrice: null,
+						exitDate: convertDateFormat(exec.tradeDate),
+						exitPrice: parseFloat(exec.tradePrice.toFixed(4)),
+						fees: parseFloat(Math.abs(exec.commission).toFixed(2)),
+						realizedPnl: parseFloat(exec.fifoPnl.toFixed(2)), // Direct from broker!
+						notes: `Closed: ${exec.ibOrderId} | ${exitType} | Broker P&L: $${exec.fifoPnl}`
 					};
 					
-					if (firstExec.buySell === 'BUY') {
-						buyOrders.push(order);
-					} else {
-						sellOrders.push(order);
+					// Calculate approximate entry price from P&L
+					if (exec.fifoPnl !== 0 && exec.quantity !== 0) {
+						const grossPnl = exec.fifoPnl + Math.abs(exec.commission);
+						const priceChange = grossPnl / Math.abs(exec.quantity);
+						trade.entryPrice = parseFloat((exec.tradePrice - priceChange).toFixed(4));
 					}
-				});
-				
-				// Sort chronologically
-				buyOrders.sort((a, b) => a.date - b.date);
-				sellOrders.sort((a, b) => a.date - b.date);
-				
-				console.log(`  📈 ${buyOrders.length} BUY orders, 📉 ${sellOrders.length} SELL orders`);
-				
-				// FIFO matching
-				const openPositions = [...buyOrders];
-				
-				sellOrders.forEach(sellOrder => {
-					let remainingSell = sellOrder.quantity;
 					
-					while (remainingSell > 0 && openPositions.length > 0) {
-						const oldestBuy = openPositions[0];
-						const closeQty = Math.min(remainingSell, oldestBuy.quantity);
-						
-						// Create completed trade
-						const grossPnl = (sellOrder.price - oldestBuy.price) * closeQty;
-						const totalCommission = (oldestBuy.commission * closeQty / oldestBuy.quantity) + 
-											  (sellOrder.commission * closeQty / sellOrder.quantity);
-						const netPnl = grossPnl - totalCommission;
-						
-						const exitType = sellOrder.orderType.includes('STP') ? 'Stop Loss' : 
-									   sellOrder.orderType.includes('LMT') ? 'Limit' : 'Manual';
-						
-						const trade = {
-							id: Date.now() + Math.random(),
-							symbol: symbol,
-							entryDate: convertDateFormat(oldestBuy.date),
-							entryPrice: parseFloat(oldestBuy.price.toFixed(4)),
-							quantity: closeQty,
-							positionType: 'Long',
-							entryType: 'FIFO Import',
-							initialStop: 0,
-							currentStop: 0,
-							limitPrice: null,
-							exitDate: convertDateFormat(sellOrder.date),
-							exitPrice: parseFloat(sellOrder.price.toFixed(4)),
-							fees: parseFloat(totalCommission.toFixed(2)),
-							realizedPnl: parseFloat(netPnl.toFixed(2)),
-							notes: `FIFO: ${oldestBuy.orderId}→${sellOrder.orderId} | ${exitType}`
-						};
-						
-						allTrades.push(trade);
-						console.log(`  ✅ Trade: ${closeQty} @ $${oldestBuy.price.toFixed(3)} → $${sellOrder.price.toFixed(3)} = $${netPnl.toFixed(2)}`);
-						
-						oldestBuy.quantity -= closeQty;
-						if (oldestBuy.quantity === 0) {
-							openPositions.shift();
-						}
-						
-						remainingSell -= closeQty;
-					}
-				});
-				
-				// Add remaining open positions
-				openPositions.forEach(buyOrder => {
-					if (buyOrder.quantity > 0) {
-						const trade = {
-							id: Date.now() + Math.random(),
-							symbol: symbol,
-							entryDate: convertDateFormat(buyOrder.date),
-							entryPrice: parseFloat(buyOrder.price.toFixed(4)),
-							quantity: buyOrder.quantity,
-							positionType: 'Long',
-							entryType: 'FIFO Import',
-							initialStop: 0,
-							currentStop: 0,
-							limitPrice: null,
-							exitDate: null,
-							exitPrice: null,
-							fees: parseFloat(buyOrder.commission.toFixed(2)),
-							realizedPnl: null,
-							notes: `Open: ${buyOrder.orderId} | ${buyOrder.orderType}`
-						};
-						
-						allTrades.push(trade);
-						console.log(`  🟡 Open: ${buyOrder.quantity} @ $${buyOrder.price.toFixed(3)}`);
-					}
-				});
+					allTrades.push(trade);
+					console.log(`📉 Closed: ${exec.symbol} ${exec.quantity} → P&L: $${exec.fifoPnl}`);
+				}
 			});
 			
+			console.log(`\n✅ Created ${allTrades.length} trades from broker data`);
 			return allTrades;
 		}
+
+		/* 
+		// OLD FIFO LOGIC - KEEP FOR BACKUP
+		function processFIFOLogic(executions) {
+					// Group by symbol
+					const symbolGroups = {};
+					executions.forEach(exec => {
+						if (!symbolGroups[exec.symbol]) {
+							symbolGroups[exec.symbol] = [];
+						}
+						symbolGroups[exec.symbol].push(exec);
+					});
+					
+					const allTrades = [];
+					
+					// Process each symbol separately
+					Object.entries(symbolGroups).forEach(([symbol, symbolExecs]) => {
+						console.log(`\n🔍 Processing ${symbol}:`);
+						
+						// Group by IBOrderID and sort by time
+						const orders = {};
+						symbolExecs.forEach(exec => {
+							const orderId = exec.ibOrderId;
+							if (!orders[orderId]) {
+								orders[orderId] = [];
+							}
+							orders[orderId].push(exec);
+						});
+						
+						// Convert to buy/sell orders
+						const buyOrders = [];
+						const sellOrders = [];
+						
+						Object.values(orders).forEach(orderExecs => {
+							const firstExec = orderExecs[0];
+							const totalQty = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.quantity), 0);
+							const totalCost = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.quantity * exec.tradePrice), 0);
+							const totalCommission = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.commission), 0);
+							const avgPrice = totalCost / totalQty;
+							
+							const order = {
+								symbol: firstExec.symbol,
+								date: firstExec.tradeDate,
+								quantity: totalQty,
+								price: avgPrice,
+								commission: totalCommission,
+								type: firstExec.buySell,
+								orderType: firstExec.orderType,
+								orderId: firstExec.ibOrderId
+							};
+							
+							if (firstExec.buySell === 'BUY') {
+								buyOrders.push(order);
+							} else {
+								sellOrders.push(order);
+							}
+						});
+						
+						// Sort chronologically
+						buyOrders.sort((a, b) => a.date - b.date);
+						sellOrders.sort((a, b) => a.date - b.date);
+						
+						console.log(`  📈 ${buyOrders.length} BUY orders, 📉 ${sellOrders.length} SELL orders`);
+						
+						// FIFO matching
+						const openPositions = [...buyOrders];
+						
+						sellOrders.forEach(sellOrder => {
+							let remainingSell = sellOrder.quantity;
+							
+							while (remainingSell > 0 && openPositions.length > 0) {
+								const oldestBuy = openPositions[0];
+								const closeQty = Math.min(remainingSell, oldestBuy.quantity);
+								
+								// Create completed trade
+								const grossPnl = (sellOrder.price - oldestBuy.price) * closeQty;
+								const totalCommission = (oldestBuy.commission * closeQty / oldestBuy.quantity) + 
+													  (sellOrder.commission * closeQty / sellOrder.quantity);
+								const netPnl = grossPnl - totalCommission;
+								
+								const exitType = sellOrder.orderType.includes('STP') ? 'Stop Loss' : 
+											   sellOrder.orderType.includes('LMT') ? 'Limit' : 'Manual';
+								
+								const trade = {
+									id: Date.now() + Math.random(),
+									symbol: symbol,
+									entryDate: convertDateFormat(oldestBuy.date),
+									entryPrice: parseFloat(oldestBuy.price.toFixed(4)),
+									quantity: closeQty,
+									positionType: 'Long',
+									entryType: 'FIFO Import',
+									initialStop: 0,
+									currentStop: 0,
+									limitPrice: null,
+									exitDate: convertDateFormat(sellOrder.date),
+									exitPrice: parseFloat(sellOrder.price.toFixed(4)),
+									fees: parseFloat(totalCommission.toFixed(2)),
+									realizedPnl: parseFloat(netPnl.toFixed(2)),
+									notes: `FIFO: ${oldestBuy.orderId}→${sellOrder.orderId} | ${exitType}`
+								};
+								
+								allTrades.push(trade);
+								console.log(`  ✅ Trade: ${closeQty} @ $${oldestBuy.price.toFixed(3)} → $${sellOrder.price.toFixed(3)} = $${netPnl.toFixed(2)}`);
+								
+								oldestBuy.quantity -= closeQty;
+								if (oldestBuy.quantity === 0) {
+									openPositions.shift();
+								}
+								
+								remainingSell -= closeQty;
+							}
+						});
+						
+						// Add remaining open positions
+						openPositions.forEach(buyOrder => {
+							if (buyOrder.quantity > 0) {
+								const trade = {
+									id: Date.now() + Math.random(),
+									symbol: symbol,
+									entryDate: convertDateFormat(buyOrder.date),
+									entryPrice: parseFloat(buyOrder.price.toFixed(4)),
+									quantity: buyOrder.quantity,
+									positionType: 'Long',
+									entryType: 'FIFO Import',
+									initialStop: 0,
+									currentStop: 0,
+									limitPrice: null,
+									exitDate: null,
+									exitPrice: null,
+									fees: parseFloat(buyOrder.commission.toFixed(2)),
+									realizedPnl: null,
+									notes: `Open: ${buyOrder.orderId} | ${buyOrder.orderType}`
+								};
+								
+								allTrades.push(trade);
+								console.log(`  🟡 Open: ${buyOrder.quantity} @ $${buyOrder.price.toFixed(3)}`);
+							}
+						});
+					});
+					
+					return allTrades;
+				}
+		}
+		*/
+		
+		
 
 		function convertDateFormat(dateNum) {
 			const dateStr = dateNum.toString();
