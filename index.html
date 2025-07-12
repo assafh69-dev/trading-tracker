@@ -2761,13 +2761,13 @@
 							initialStop: 0,
 							currentStop: 0,
 							limitPrice: null,
-							entryType: 'Market',  // ← שנה מ-'IBKR Import'
+							// ← הסרתי entryType לחלוטין!
 							exitDate: null,
 							exitPrice: null,
 							fees: cleanCommission,
-							notes: `IBKR: ${description} | Commission: $${cleanCommission}`,
-							createdAt: new Date().toISOString().split('T')[0],  // ← הוסף שדה חסר!
-							marketPrice: null  // ← הוסף גם את זה
+							notes: 'Imported from broker',
+							createdAt: new Date().toISOString().split('T')[0],
+							marketPrice: `=GOOGLEFINANCE("${symbol.toUpperCase().trim()}")`
 						};
 						
 						console.log('Creating trade:', trade);
