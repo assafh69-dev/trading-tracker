@@ -2614,57 +2614,27 @@
 
 
 		async function setupImportTable() {
-			const batchData = [
-				{
-					range: 'Broker Data!A1:S6',
-					values: [
-						// All 19 columns from IBKR CSV
-						['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID'],
-						
-						// Instructions
-						[],
-						['📋 FIFO IMPORT - Paste your IBKR data starting from row 7', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-						['✅ All 19 columns supported - just copy/paste from CSV', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-						['🧠 System will automatically group by IBOrderID and apply FIFO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-						['🚀 Click "Import FIFO Data" when ready', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
-					]
-				}
-			];
-			
 			try {
-				await gapi.client.sheets.spreadsheets.values.batchUpdate({
+				// Add headers - simple approach
+				const headerData = [
+					['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID'],
+					[],
+					['📋 FIFO IMPORT - Paste your IBKR data starting from row 7'],
+					['✅ All 19 columns supported - just copy/paste from CSV'],
+					['🧠 System will automatically group by IBOrderID and apply FIFO'],
+					['🚀 Click "Import FIFO Data" when ready']
+				];
+				
+				await gapi.client.sheets.spreadsheets.values.update({
 					spreadsheetId: import_spreadsheet_id,
+					range: 'Broker Data!A1:S6',
+					valueInputOption: 'RAW',
 					resource: {
-						valueInputOption: 'RAW',
-						data: batchData
+						values: headerData
 					}
 				});
 				
-				// Format instruction rows with nice colors
-				await gapi.client.sheets.spreadsheets.batchUpdate({
-					spreadsheetId: import_spreadsheet_id,
-					resource: {
-						requests: [
-							{
-								repeatCell: {
-									range: {
-										startRowIndex: 2,
-										endRowIndex: 6,
-										startColumnIndex: 0,
-										endColumnIndex: 19 // All 19 columns
-									},
-									cell: {
-										userEnteredFormat: {
-											backgroundColor: { red: 0.9, green: 0.95, blue: 1.0 },
-											textFormat: { bold: true }
-										}
-									},
-									fields: 'userEnteredFormat(backgroundColor,textFormat)'
-								}
-							}
-						]
-					}
-				});
+				console.log('✅ Headers added successfully');
 				
 			} catch (error) {
 				console.error('Setup error:', error);
