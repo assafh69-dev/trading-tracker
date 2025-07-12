@@ -1584,13 +1584,12 @@
 				
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: spreadsheet_id,
-					range: 'Trades!A2:P1000' // Extended to include Market Price column
+					range: 'Trades!A2:O1000' // O = 15 עמודות (לא P = 16)
 				});
 				
 				const values = response.result.values || [];
 				
-				// Convert back to trades array
-				// Convert back to trades array - FILTER OUT EMPTY ROWS
+				// Convert back to trades array - FIXED ORDER
 				trades = values
 					.filter(row => row[1] && row[1].trim() && row[1] !== '') // Only rows with valid symbol
 					.map(row => ({
@@ -1607,13 +1606,14 @@
 						exitPrice: row[10] ? parseFloat(row[10]) : null,
 						fees: parseFloat(row[11]) || 0,
 						notes: row[12] || '',
-						entryType: row[13] || 'General'
+						createdAt: row[13] || new Date().toISOString().split('T')[0], // ← תיקון
+						marketPrice: row[14] || null  // ← תיקון
 					}));
 				
 				// Update displays
 				displayTrades();
 				updateAccountDisplay();
-				saveDataLocally(); // גם שמור מקומית
+				saveDataLocally();
 				
 				showToast(`נטענו ${trades.length} טריידים מהענן!`, 'success');
 				
