@@ -2615,30 +2615,26 @@
 
 		async function setupImportTable() {
 			try {
-				// Add headers - simple approach
-				const headerData = [
-					['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID'],
-					[],
-					['📋 FIFO IMPORT - Paste your IBKR data starting from row 7'],
-					['✅ All 19 columns supported - just copy/paste from CSV'],
-					['🧠 System will automatically group by IBOrderID and apply FIFO'],
-					['🚀 Click "Import FIFO Data" when ready']
-				];
+				console.log('Setting up import table...');
 				
-				await gapi.client.sheets.spreadsheets.values.update({
+				// Try to add just headers first
+				const response = await gapi.client.sheets.spreadsheets.values.update({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Broker Data!A1:S6',
+					range: 'Sheet1!A1:S1', // Use Sheet1 instead of "Broker Data"
 					valueInputOption: 'RAW',
 					resource: {
-						values: headerData
+						values: [
+							['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID']
+						]
 					}
 				});
 				
 				console.log('✅ Headers added successfully');
+				showToast('✅ הטבלה מוכנה - הדבק נתונים בשורה 2!', 'success');
 				
 			} catch (error) {
 				console.error('Setup error:', error);
-				showToast('שגיאה בהגדרת הטבלה', 'error');
+				showToast('ההגדרה נכשלה - הוסף כותרות ידנית', 'warning');
 			}
 		}
 
@@ -2803,7 +2799,7 @@
 				// Read all 19 columns from the CSV data you pasted
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Broker Data!A7:S1000' // All 19 columns from row 7
+					range: 'Sheet1!A2:S1000' // All 19 columns from row 2
 				});
 				
 				const rawData = response.result.values || [];
