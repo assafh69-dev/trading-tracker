@@ -2754,18 +2754,20 @@
 						const trade = {
 							id: Date.now() + Math.random(),
 							symbol: symbol.toUpperCase().trim(),
-							entryDate: date, // Already in YYYY-MM-DD format!
+							entryDate: date,
 							entryPrice: cleanPrice,
 							quantity: Math.abs(parseInt(quantity)) || 0,
 							positionType: 'Long',
-							entryType: 'IBKR Import',
-							initialStop: 0, // User needs to fill this manually
+							initialStop: 0,
 							currentStop: 0,
 							limitPrice: null,
+							entryType: 'Market',  // ← שנה מ-'IBKR Import'
 							exitDate: null,
 							exitPrice: null,
 							fees: cleanCommission,
-							notes: `IBKR: ${description} | Commission: $${cleanCommission}`
+							notes: `IBKR: ${description} | Commission: $${cleanCommission}`,
+							createdAt: new Date().toISOString().split('T')[0],  // ← הוסף שדה חסר!
+							marketPrice: null  // ← הוסף גם את זה
 						};
 						
 						console.log('Creating trade:', trade);
