@@ -2816,7 +2816,9 @@
 			}
 		}
 		
+
 		
+		// Perfect FIFO Import - Combines FIFO Logic + Broker P&L
 		async function importFIFOBrokerData() {
 			if (!import_spreadsheet_id) {
 				showToast('יש ליצור תחילה טבלת ייבוא', 'warning');
@@ -2824,7 +2826,7 @@
 			}
 			
 			try {
-				showToast('🧠 מייבא נתונים פשוט ומדויק...', 'info');
+				showToast('🧠 מייבא עם FIFO + נתוני ברוקר מדויקים...', 'info');
 				
 				// Read all data from import table
 				const response = await gapi.client.sheets.spreadsheets.values.get({
@@ -2840,7 +2842,7 @@
 					return;
 				}
 				
-				// Parse executions
+				// Parse executions from IBKR format
 				const executions = rawData
 					.filter(row => row[1] && row[7]) // Must have Symbol and Buy/Sell
 					.map(row => ({
@@ -2853,9 +2855,12 @@
 						fifoPnl: parseFloat(row[6]) || 0,
 						buySell: (row[7] || '').toString().toUpperCase(),
 						proceeds: parseFloat(row[8]) || 0,
+						closePrice: parseFloat(row[9]) || 0,
+						openClose: (row[10] || '').toString().toUpperCase(),
 						commission: parseFloat(row[14]) || 0,
 						orderType: (row[12] || '').toString().toUpperCase(),
 						description: row[13] || '',
+						orderTime: row[16] || '',
 						ibOrderId: row[18] || ''
 					}))
 					.filter(exec => exec.symbol && exec.buySell && exec.tradeDate);
@@ -2867,8 +2872,8 @@
 					return;
 				}
 				
-				// Process using simple broker P&L approach
-				const result = processSimpleBrokerData(executions);
+				// Process using Perfect FIFO Logic
+				const result = processPerfectFIFO(executions);
 				
 				// Add all trades to our system
 				result.forEach(trade => trades.push(trade));
@@ -2877,15 +2882,187 @@
 				displayTrades();
 				saveDataLocally();
 				
-				showToast(`🎉 יובאו ${result.length} טריידים מהברוקר!`, 'success');
-				console.log(`✅ Import completed: ${result.length} trades created`);
+				showToast(`🎉 יובאו ${result.length} טריידים מושלמים!`, 'success');
+				console.log(`✅ Perfect import: ${result.length} logical trades created`);
 				
 			} catch (error) {
 				console.error('❌ Import error:', error);
 				showToast('שגיאה בייבוא נתונים', 'error');
 			}
 		}
+
+		function processPerfectFIFO(executions) {
+			console.log('\n🎯 Processing Perfect FIFO: Logic + Broker P&L...');
+			
+			// Group by symbol first
+			const symbolGroups = {};
+			executions.forEach(exec => {
+				if (!symbolGroups[exec.symbol]) {
+					symbolGroups[exec.symbol] = [];
+				}
+				symbolGroups[exec.symbol].push(exec);
+			});
+			
+			const allTrades = [];
+			
+			// Process each symbol separately using FIFO
+			Object.entries(symbolGroups).forEach(([symbol, symbolExecs]) => {
+				console.log(`\n🔍 Processing ${symbol}:`);
+				
+				// Group executions by IBOrderID and sort by time
+				const orders = {};
+				symbolExecs.forEach(exec => {
+					const orderId = exec.ibOrderId;
+					if (!orders[orderId]) {
+						orders[orderId] = [];
+					}
+					orders[orderId].push(exec);
+				});
+				
+				// Convert orders to buy/sell orders with totals
+				const buyOrders = [];
+				const sellOrders = [];
+				
+				Object.values(orders).forEach(orderExecs => {
+					const firstExec = orderExecs[0];
+					const totalQty = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.quantity), 0);
+					const totalCost = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.tradeMoney), 0);
+					const totalCommission = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.commission), 0);
+					const avgPrice = totalCost / totalQty;
+					
+					// Collect all FifoPnl from this order (for sells)
+					const totalFifoPnl = orderExecs.reduce((sum, exec) => sum + (exec.fifoPnl || 0), 0);
+					
+					const order = {
+						symbol: firstExec.symbol,
+						date: firstExec.tradeDate,
+						orderTime: firstExec.orderTime,
+						quantity: totalQty,
+						price: avgPrice,
+						commission: totalCommission,
+						type: firstExec.buySell,
+						orderType: firstExec.orderType,
+						orderId: firstExec.ibOrderId,
+						fifoPnl: totalFifoPnl, // Total P&L from broker
+						openClose: firstExec.openClose
+					};
+					
+					if (firstExec.buySell === 'BUY') {
+						buyOrders.push(order);
+					} else {
+						sellOrders.push(order);
+					}
+				});
+				
+				// Sort chronologically
+				buyOrders.sort((a, b) => {
+					if (a.date !== b.date) return a.date - b.date;
+					return a.orderTime > b.orderTime ? 1 : -1;
+				});
+				sellOrders.sort((a, b) => {
+					if (a.date !== b.date) return a.date - b.date;
+					return a.orderTime > b.orderTime ? 1 : -1;
+				});
+				
+				console.log(`  📈 ${buyOrders.length} BUY orders, 📉 ${sellOrders.length} SELL orders`);
+				
+				// FIFO matching with broker P&L
+				const openPositions = [...buyOrders];
+				
+				sellOrders.forEach(sellOrder => {
+					let remainingSell = sellOrder.quantity;
+					let sellPnlUsed = 0;
+					
+					while (remainingSell > 0 && openPositions.length > 0) {
+						const oldestBuy = openPositions[0];
+						const closeQty = Math.min(remainingSell, oldestBuy.quantity);
+						
+						// Calculate proportional P&L from broker data
+						const pnlProportion = closeQty / sellOrder.quantity;
+						const tradePnl = sellOrder.fifoPnl * pnlProportion;
+						
+						// Calculate proportional commissions
+						const buyCommissionProp = (oldestBuy.commission * closeQty) / oldestBuy.quantity;
+						const sellCommissionProp = (sellOrder.commission * closeQty) / sellOrder.quantity;
+						const totalCommission = buyCommissionProp + sellCommissionProp;
+						
+						// Determine exit type
+						const exitType = sellOrder.orderType.includes('STP') ? 'Stop Loss' : 
+									   sellOrder.orderType.includes('LMT') ? 'Limit' : 'Manual';
+						
+						// Create completed trade using broker P&L
+						const trade = {
+							id: Date.now() + Math.random(),
+							symbol: symbol,
+							entryDate: convertDateFormat(oldestBuy.date),
+							entryPrice: parseFloat(oldestBuy.price.toFixed(4)),
+							quantity: closeQty,
+							positionType: 'Long',
+							entryType: 'FIFO Import',
+							initialStop: 0, // User needs to fill
+							currentStop: 0,
+							limitPrice: null,
+							exitDate: convertDateFormat(sellOrder.date),
+							exitPrice: parseFloat(sellOrder.price.toFixed(4)),
+							fees: parseFloat(totalCommission.toFixed(2)),
+							realizedPnl: parseFloat(tradePnl.toFixed(2)), // Direct from broker!
+							notes: `FIFO: ${oldestBuy.orderId}→${sellOrder.orderId} | ${exitType} | Broker P&L`
+						};
+						
+						allTrades.push(trade);
+						console.log(`  ✅ Closed: ${closeQty} @ $${oldestBuy.price.toFixed(3)} → $${sellOrder.price.toFixed(3)} = $${tradePnl.toFixed(2)}`);
+						
+						// Update remaining quantities
+						oldestBuy.quantity -= closeQty;
+						if (oldestBuy.quantity === 0) {
+							openPositions.shift();
+						}
+						
+						remainingSell -= closeQty;
+						sellPnlUsed += tradePnl;
+					}
+				});
+				
+				// Add remaining open positions
+				openPositions.forEach(buyOrder => {
+					if (buyOrder.quantity > 0) {
+						const trade = {
+							id: Date.now() + Math.random(),
+							symbol: symbol,
+							entryDate: convertDateFormat(buyOrder.date),
+							entryPrice: parseFloat(buyOrder.price.toFixed(4)),
+							quantity: buyOrder.quantity,
+							positionType: 'Long',
+							entryType: 'FIFO Import',
+							initialStop: 0, // User needs to fill
+							currentStop: 0,
+							limitPrice: null,
+							exitDate: null,
+							exitPrice: null,
+							fees: parseFloat(buyOrder.commission.toFixed(2)),
+							realizedPnl: null, // Open trade
+							notes: `Open: ${buyOrder.orderId} | ${buyOrder.orderType} | FIFO grouped`
+						};
+						
+						allTrades.push(trade);
+						console.log(`  🟡 Open: ${buyOrder.quantity} @ $${buyOrder.price.toFixed(3)}`);
+					}
+				});
+			});
+			
+			console.log(`\n✅ Perfect FIFO created ${allTrades.length} logical trades`);
+			return allTrades;
+		}
+
+		function convertDateFormat(dateNum) {
+			const dateStr = dateNum.toString();
+			if (dateStr.length === 8) {
+				return `${dateStr.substr(0,4)}-${dateStr.substr(4,2)}-${dateStr.substr(6,2)}`;
+			}
+			return dateStr;
+		}
 		
+
 		
 		function processSimpleBrokerData(executions) {
 			console.log('\n🎯 Processing broker data using FifoPnlRealized...');
