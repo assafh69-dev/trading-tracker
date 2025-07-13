@@ -2830,7 +2830,7 @@
 				// Read all data from import table
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Sheet1!A8:S1000' // All 19 columns from row 8
+					range: 'Sheet1!A7:S1000' // All 19 columns from row 7
 				});
 				
 				const rawData = response.result.values || [];
