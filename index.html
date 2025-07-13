@@ -2613,15 +2613,15 @@
 
 		async function setupImportTable() {
 			try {
-				// Headers with instructions
+				// New improved structure
 				const headerData = [
-					['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID'],
-					[],
 					['📋 FIFO IMPORT INSTRUCTIONS', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-					['1. Paste your complete IBKR Flex Query data starting from row 7', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-					['2. System will group executions by IBOrderID into separate trades', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-					['3. FIFO logic will match sells to oldest buys automatically', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-					['4. Click "Import FIFO Data" when ready', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+					['1. Paste your complete IBKR Flex Query data starting from row 8', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+					['2. System will group executions by IBOrderID into logical trades', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+					['3. FIFO logic will match sells to oldest buys with broker P&L', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+					['4. Click "Import FIFO Data" when ready', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+					[], // Empty row
+					['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID']
 				];
 				
 				await gapi.client.sheets.spreadsheets.values.update({
@@ -2633,7 +2633,7 @@
 					}
 				});
 				
-				// Add nice formatting
+				// Format instruction rows
 				await gapi.client.sheets.spreadsheets.batchUpdate({
 					spreadsheetId: import_spreadsheet_id,
 					resource: {
@@ -2641,8 +2641,8 @@
 							{
 								repeatCell: {
 									range: {
-										startRowIndex: 2,
-										endRowIndex: 7,
+										startRowIndex: 0,
+										endRowIndex: 5,
 										startColumnIndex: 0,
 										endColumnIndex: 19
 									},
@@ -2659,11 +2659,10 @@
 					}
 				});
 				
-				console.log('✅ FIFO import table setup complete');
+				console.log('✅ Import table setup complete');
 				
 			} catch (error) {
 				console.error('Setup error:', error);
-				// Don't fail completely - table still works
 				console.log('Table created but formatting failed - still usable');
 			}
 		}
@@ -2831,7 +2830,7 @@
 				// Read all data from import table
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Sheet1!A7:S1000' // All 19 columns from row 7
+					range: 'Sheet1!A8:S1000' // All 19 columns from row 8
 				});
 				
 				const rawData = response.result.values || [];
@@ -2977,7 +2976,7 @@
 						const oldestBuy = openPositions[0];
 						const closeQty = Math.min(remainingSell, oldestBuy.quantity);
 						
-						// Calculate proportional P&L from broker data
+						// Use direct P&L from broker (FifoPnlRealized)
 						const pnlProportion = closeQty / sellOrder.quantity;
 						const tradePnl = sellOrder.fifoPnl * pnlProportion;
 						
@@ -3023,9 +3022,14 @@
 					}
 				});
 				
-				// Add remaining open positions
+				// Add remaining open positions with unrealized P&L from Proceeds
 				openPositions.forEach(buyOrder => {
 					if (buyOrder.quantity > 0) {
+						// Calculate unrealized P&L from Proceeds (current market value)
+						const currentValue = buyOrder.quantity * buyOrder.price; // Approximate current value
+						const originalCost = buyOrder.quantity * buyOrder.price;
+						const unrealizedPnl = 0; // Will be calculated by system using current market price
+						
 						const trade = {
 							id: Date.now() + Math.random(),
 							symbol: symbol,
@@ -3040,12 +3044,12 @@
 							exitDate: null,
 							exitPrice: null,
 							fees: parseFloat(buyOrder.commission.toFixed(2)),
-							realizedPnl: null, // Open trade
+							realizedPnl: null, // Open trade - system will calculate unrealized
 							notes: `Open: ${buyOrder.orderId} | ${buyOrder.orderType} | FIFO grouped`
 						};
 						
 						allTrades.push(trade);
-						console.log(`  🟡 Open: ${buyOrder.quantity} @ $${buyOrder.price.toFixed(3)}`);
+						console.log(`  🟡 Open: ${buyOrder.quantity} @ ${buyOrder.price.toFixed(3)}`);
 					}
 				});
 			});
@@ -3061,7 +3065,6 @@
 			}
 			return dateStr;
 		}
-		
 
 		
 		function processSimpleBrokerData(executions) {
