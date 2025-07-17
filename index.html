@@ -886,7 +886,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות v2.11</button>
+			<button class="tab" onclick="showTab(event, 'about')">אודות v2.12</button>
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -2013,7 +2013,7 @@
 			
 			// הצגת התוצאות המסוננות
 			displayFilteredTrades();
-			updatePortfolioSummary();
+			//updatePortfolioSummary();
 			showToast(`נמצאו ${filteredTrades.length} טריידים`, 'success');
 		}
 
@@ -2135,7 +2135,7 @@
 					</td>
 				`;
 			});
-			updatePortfolioSummary();
+			//updatePortfolioSummary();
 		}
 		
 		
@@ -2493,7 +2493,7 @@
 		function displayTrades() {
 			filteredTrades = []; // איפוס הסינון
 			displayFilteredTrades(); // שימוש בפונקציה החדשה
-			updatePortfolioSummary();
+			//updatePortfolioSummary();
 		}
 
 
