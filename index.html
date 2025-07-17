@@ -483,14 +483,6 @@
             border-radius: 3px;
             font-size: 10px;
         }
-		
-		.status-review {
-			background: #ff9800;
-			color: white;
-			padding: 3px 8px;
-			border-radius: 3px;
-			font-size: 10px;
-		}
 
         @media (max-width: 768px) {
             .account-summary {
@@ -886,7 +878,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות v2.13</button>
+			<button class="tab" onclick="showTab(event, 'about')">אודות</button>  <!-- הוסף את זה -->
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -1044,7 +1036,7 @@
 					</button>
 					<span id="priceUpdateStatus" style="margin-right: 15px; font-weight: bold;"></span>
 				</div>
-				<div style="overflow-x: auto;">
+                <div style="overflow-x: auto;">
                     <table class="trades-table" id="tradesTable">
                         <thead>
                             <tr>
@@ -2007,7 +1999,7 @@
 			
 			// הצגת התוצאות המסוננות
 			displayFilteredTrades();
-			//updatePortfolioSummary();
+			
 			showToast(`נמצאו ${filteredTrades.length} טריידים`, 'success');
 		}
 
@@ -2129,7 +2121,6 @@
 					</td>
 				`;
 			});
-			//updatePortfolioSummary();
 		}
 		
 		
@@ -2487,7 +2478,6 @@
 		function displayTrades() {
 			filteredTrades = []; // איפוס הסינון
 			displayFilteredTrades(); // שימוש בפונקציה החדשה
-			//updatePortfolioSummary();
 		}
 
 
@@ -3712,29 +3702,6 @@
 				return `${dateStr.substr(0,4)}-${dateStr.substr(4,2)}-${dateStr.substr(6,2)}`;
 			}
 			return dateStr;
-		}
-		
-		function updatePortfolioSummary() {
-			// SAFETY CHECK:
-			const summaryElement = document.getElementById('summaryText');
-			if (!summaryElement) {
-				console.log('Portfolio summary element not found - skipping update');
-				return; // Exit if element doesn't exist
-			}
-			
-			const tradesToShow = filteredTrades.length > 0 ? filteredTrades : trades;
-			const totalTrades = tradesToShow.length;
-			const openTrades = tradesToShow.filter(t => t.status === 'Open').length;
-			const closedTrades = tradesToShow.filter(t => t.status === 'Closed').length;
-			const reviewTrades = tradesToShow.filter(t => t.status === 'Review').length;
-			
-			let summaryText = `נמצאו ${totalTrades} טריידים`;
-			
-			if (openTrades > 0) summaryText += ` • ${openTrades} פתוחים`;
-			if (closedTrades > 0) summaryText += ` • ${closedTrades} סגורים`;
-			if (reviewTrades > 0) summaryText += ` • ${reviewTrades} לבדיקה`;
-			
-			summaryElement.textContent = summaryText;
 		}
 
 	</script>
