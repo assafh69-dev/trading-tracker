@@ -483,6 +483,14 @@
             border-radius: 3px;
             font-size: 10px;
         }
+		
+		.status-review {
+			background: #ff9800;
+			color: white;
+			padding: 3px 8px;
+			border-radius: 3px;
+			font-size: 10px;
+		}
 
         @media (max-width: 768px) {
             .account-summary {
@@ -878,7 +886,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות</button>  <!-- הוסף את זה -->
+			<button class="tab" onclick="showTab(event, 'about')">אודות v2.0</button>
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -1035,6 +1043,12 @@
 						🗑️ מחק כל הטריידים
 					</button>
 					<span id="priceUpdateStatus" style="margin-right: 15px; font-weight: bold;"></span>
+				</div>
+				<div id="portfolioSummary" style="background: #e3f2fd; padding: 15px; margin: 15px 0; border-radius: 8px; border: 2px solid #2196f3; text-align: center;">
+					<h4 style="margin: 0; color: #1976d2;">📊 סיכום פורטפוליו</h4>
+					<div id="summaryText" style="margin-top: 8px; font-size: 16px; font-weight: bold; color: #2c3e50;">
+						נמצאו 0 טריידים
+					</div>
 				</div>
                 <div style="overflow-x: auto;">
                     <table class="trades-table" id="tradesTable">
@@ -1999,7 +2013,7 @@
 			
 			// הצגת התוצאות המסוננות
 			displayFilteredTrades();
-			
+			updatePortfolioSummary();
 			showToast(`נמצאו ${filteredTrades.length} טריידים`, 'success');
 		}
 
@@ -2046,7 +2060,10 @@
 			tradesToShow.forEach(trade => {
 				const { profit, profitPercent } = calculateProfitLoss(trade);
 				const risk = calculateTradeRisk(trade);
-				const isClosed = isFullyClosed(trade);
+				const statusText = trade.status === 'Review' ? 'בדיקה' : 
+                  trade.status === 'Closed' ? 'סגור' : 'פתוח';
+				const statusClass = trade.status === 'Review' ? 'status-review' : 
+                   trade.status === 'Closed' ? 'status-closed' : 'status-open';
 				const riskBoxPercent = calculateRiskBoxPercentage(trade);
 				
 				const row = tbody.insertRow();
@@ -2118,6 +2135,7 @@
 					</td>
 				`;
 			});
+			updatePortfolioSummary();
 		}
 		
 		
@@ -2475,6 +2493,7 @@
 		function displayTrades() {
 			filteredTrades = []; // איפוס הסינון
 			displayFilteredTrades(); // שימוש בפונקציה החדשה
+			updatePortfolioSummary();
 		}
 
 
@@ -3699,6 +3718,22 @@
 				return `${dateStr.substr(0,4)}-${dateStr.substr(4,2)}-${dateStr.substr(6,2)}`;
 			}
 			return dateStr;
+		}
+		
+		function updatePortfolioSummary() {
+			const tradesToShow = filteredTrades.length > 0 ? filteredTrades : trades;
+			const totalTrades = tradesToShow.length;
+			const openTrades = tradesToShow.filter(t => t.status === 'Open').length;
+			const closedTrades = tradesToShow.filter(t => t.status === 'Closed').length;
+			const reviewTrades = tradesToShow.filter(t => t.status === 'Review').length;
+			
+			let summaryText = `נמצאו ${totalTrades} טריידים`;
+			
+			if (openTrades > 0) summaryText += ` • ${openTrades} פתוחים`;
+			if (closedTrades > 0) summaryText += ` • ${closedTrades} סגורים`;
+			if (reviewTrades > 0) summaryText += ` • ${reviewTrades} לבדיקה`;
+			
+			document.getElementById('summaryText').textContent = summaryText;
 		}
 
 	</script>
