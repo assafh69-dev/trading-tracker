@@ -2046,10 +2046,7 @@
 			tradesToShow.forEach(trade => {
 				const { profit, profitPercent } = calculateProfitLoss(trade);
 				const risk = calculateTradeRisk(trade);
-				const statusText = trade.status === 'Review' ? 'בדיקה' : 
-                  trade.status === 'Closed' ? 'סגור' : 'פתוח';
-				const statusClass = trade.status === 'Review' ? 'status-review' : 
-                   trade.status === 'Closed' ? 'status-closed' : 'status-open';
+				const isClosed = isFullyClosed(trade);
 				const riskBoxPercent = calculateRiskBoxPercentage(trade);
 				
 				const row = tbody.insertRow();
