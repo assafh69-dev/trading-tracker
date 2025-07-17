@@ -2326,7 +2326,7 @@
                 return;
             }
 
-            const trade = {
+			const trade = {
 				id: Date.now(),
 				symbol: symbol.toUpperCase(),
 				entryDate,
@@ -2336,11 +2336,16 @@
 				entryType: document.getElementById('entryType').value,
 				initialStop,
 				currentStop: initialStop,
-				limitPrice: parseFloat(document.getElementById('limitPrice').value) || null, // הוסף שורה זו
+				limitPrice: parseFloat(document.getElementById('limitPrice').value) || null,
 				exitDate: exitDate || null,
 				exitPrice: exitPrice,
 				fees: calculatedFees,
-				notes
+				notes,
+				
+				// NEW FIELDS:
+				externalTradeId: null, // TradeID from broker
+				status: 'Open', // 'Open', 'Closed', 'Review'
+				importSource: 'Manual' // 'Manual', 'IBKR', etc.
 			};
 
             trades.push(trade);
@@ -2613,15 +2618,15 @@
 
 		async function setupImportTable() {
 			try {
-				// New improved structure
+				// Instructions first, then headers in row 7, data starts row 8
 				const headerData = [
 					['📋 FIFO IMPORT INSTRUCTIONS', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
 					['1. Paste your complete IBKR Flex Query data starting from row 8', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
 					['2. System will group executions by IBOrderID into logical trades', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
 					['3. FIFO logic will match sells to oldest buys with broker P&L', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
 					['4. Click "Import FIFO Data" when ready', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-					[], // Empty row
-					['TradeID', 'Symbol', 'TradeDate', 'Quantity', 'TradePrice', 'TradeMoney', 'FifoPnlRealized', 'Buy/Sell', 'Proceeds', 'ClosePrice', 'Open/CloseIndicator', 'MtmPnl', 'OrderType', 'Description', 'IBCommission', 'CostBasis', 'OrderTime', 'TransactionType', 'IBOrderID']
+					[], // Empty row 6
+					['TradeID', 'IBOrderID', 'Symbol', 'TradeDate', 'DateTime', 'OrderTime', 'Buy/Sell', 'OrderType', 'Open/CloseIndicator', 'Quantity', 'TradePrice', 'Proceeds', 'IBCommission', 'FifoPnlRealized', 'TradeMoney', 'CostBasis', 'TransactionType', 'Notes/Codes', 'Description']
 				];
 				
 				await gapi.client.sheets.spreadsheets.values.update({
@@ -2659,7 +2664,7 @@
 					}
 				});
 				
-				console.log('✅ Import table setup complete');
+				console.log('✅ Import table setup complete with correct format');
 				
 			} catch (error) {
 				console.error('Setup error:', error);
@@ -2825,12 +2830,12 @@
 			}
 			
 			try {
-				showToast('🧠 מייבא עם FIFO + נתוני ברוקר מדויקים...', 'info');
+				showToast('🧠 מייבא נתונים עם לוגיקה מתקדמת...', 'info');
 				
-				// Read all data from import table
+				// Read all data from import table starting from row 8
 				const response = await gapi.client.sheets.spreadsheets.values.get({
 					spreadsheetId: import_spreadsheet_id,
-					range: 'Sheet1!A7:S1000' // All 19 columns from row 7
+					range: 'Sheet1!A8:S1000' // Start from row 8 now
 				});
 				
 				const rawData = response.result.values || [];
@@ -2843,24 +2848,27 @@
 				
 				// Parse executions from IBKR format
 				const executions = rawData
-					.filter(row => row[1] && row[7]) // Must have Symbol and Buy/Sell
+					.filter(row => row[2] && row[6]) // Must have Symbol and Buy/Sell
 					.map(row => ({
-						tradeId: row[0],
-						symbol: (row[1] || '').toString().toUpperCase(),
-						tradeDate: parseInt(row[2]) || 0,
-						quantity: parseInt(row[3]) || 0,
-						tradePrice: parseFloat(row[4]) || 0,
-						tradeMoney: parseFloat(row[5]) || 0,
-						fifoPnl: parseFloat(row[6]) || 0,
-						buySell: (row[7] || '').toString().toUpperCase(),
-						proceeds: parseFloat(row[8]) || 0,
-						closePrice: parseFloat(row[9]) || 0,
-						openClose: (row[10] || '').toString().toUpperCase(),
-						commission: parseFloat(row[14]) || 0,
-						orderType: (row[12] || '').toString().toUpperCase(),
-						description: row[13] || '',
-						orderTime: row[16] || '',
-						ibOrderId: row[18] || ''
+						tradeId: row[0] || '',
+						ibOrderId: row[1] || '',
+						symbol: (row[2] || '').toString().toUpperCase(),
+						tradeDate: parseInt(row[3]) || 0,
+						dateTime: row[4] || '',
+						orderTime: row[5] || '',
+						buySell: (row[6] || '').toString().toUpperCase(),
+						orderType: (row[7] || '').toString().toUpperCase(),
+						openClose: (row[8] || '').toString().toUpperCase(),
+						quantity: parseInt(row[9]) || 0,
+						tradePrice: parseFloat(row[10]) || 0,
+						proceeds: parseFloat(row[11]) || 0,
+						commission: parseFloat(row[12]) || 0,
+						fifoPnl: parseFloat(row[13]) || 0,
+						tradeMoney: parseFloat(row[14]) || 0,
+						costBasis: parseFloat(row[15]) || 0,
+						transactionType: row[16] || '',
+						notesCodes: row[17] || '',
+						description: row[18] || ''
 					}))
 					.filter(exec => exec.symbol && exec.buySell && exec.tradeDate);
 				
@@ -2871,24 +2879,278 @@
 					return;
 				}
 				
-				// Process using Perfect FIFO Logic
-				const result = processPerfectFIFO(executions);
+				// Process using advanced logic
+				const result = processAdvancedBrokerData(executions);
 				
-				// Add all trades to our system
-				result.forEach(trade => trades.push(trade));
+				// Check for duplicates before adding
+				const newTrades = checkForDuplicates(result);
+				
+				// Add all new trades to our system
+				newTrades.forEach(trade => trades.push(trade));
 				
 				updateAccountDisplay();
 				displayTrades();
 				saveDataLocally();
 				
-				showToast(`🎉 יובאו ${result.length} טריידים מושלמים!`, 'success');
-				console.log(`✅ Perfect import: ${result.length} logical trades created`);
+				const duplicatesCount = result.length - newTrades.length;
+				let message = `🎉 יובאו ${newTrades.length} טריידים חדשים!`;
+				if (duplicatesCount > 0) {
+					message += ` (${duplicatesCount} כפילויות נמנעו)`;
+				}
+				
+				showToast(message, 'success');
+				console.log(`✅ Import completed: ${newTrades.length} new trades, ${duplicatesCount} duplicates avoided`);
 				
 			} catch (error) {
 				console.error('❌ Import error:', error);
 				showToast('שגיאה בייבוא נתונים', 'error');
 			}
 		}
+////==================================================================
+
+		function processAdvancedBrokerData(executions) {
+			console.log('\n🎯 Processing broker data with advanced logic...');
+			
+			// Step 1: Group and merge split orders (same IBOrderID)
+			const mergedExecutions = mergeSplitOrders(executions);
+			console.log(`📋 After merging splits: ${mergedExecutions.length} executions`);
+			
+			// Step 2: Group by symbol
+			const symbolGroups = {};
+			mergedExecutions.forEach(exec => {
+				if (!symbolGroups[exec.symbol]) {
+					symbolGroups[exec.symbol] = [];
+				}
+				symbolGroups[exec.symbol].push(exec);
+			});
+			
+			const allTrades = [];
+			
+			// Step 3: Process each symbol with FIFO + O/C logic
+			Object.entries(symbolGroups).forEach(([symbol, symbolExecs]) => {
+				console.log(`\n🔍 Processing ${symbol}:`);
+				
+				// Separate buys and sells
+				const buyExecs = symbolExecs.filter(e => e.buySell === 'BUY').sort((a, b) => a.tradeDate - b.tradeDate);
+				const sellExecs = symbolExecs.filter(e => e.buySell === 'SELL').sort((a, b) => a.tradeDate - b.tradeDate);
+				
+				console.log(`  📈 ${buyExecs.length} BUY executions, 📉 ${sellExecs.length} SELL executions`);
+				
+				// Process FIFO matching with O/C logic
+				const trades = processFIFOMatching(buyExecs, sellExecs, symbol);
+				allTrades.push(...trades);
+			});
+			
+			console.log(`\n✅ Created ${allTrades.length} logical trades`);
+			return allTrades;
+		}
+
+		function mergeSplitOrders(executions) {
+			const orderGroups = {};
+			
+			// Group by IBOrderID
+			executions.forEach(exec => {
+				const orderId = exec.ibOrderId;
+				if (!orderGroups[orderId]) {
+					orderGroups[orderId] = [];
+				}
+				orderGroups[orderId].push(exec);
+			});
+			
+			const mergedExecutions = [];
+			
+			Object.values(orderGroups).forEach(orderExecs => {
+				if (orderExecs.length === 1) {
+					// Single execution - no split
+					mergedExecutions.push(orderExecs[0]);
+				} else {
+					// Multiple executions - merge them
+					const firstExec = orderExecs[0];
+					const totalQuantity = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.quantity), 0);
+					const totalProceeds = orderExecs.reduce((sum, exec) => sum + exec.proceeds, 0);
+					const totalCommission = orderExecs.reduce((sum, exec) => sum + Math.abs(exec.commission), 0);
+					const totalFifoPnl = orderExecs.reduce((sum, exec) => sum + (exec.fifoPnl || 0), 0);
+					
+					const mergedExec = {
+						...firstExec,
+						quantity: firstExec.buySell === 'BUY' ? totalQuantity : -totalQuantity,
+						proceeds: totalProceeds,
+						commission: totalCommission,
+						fifoPnl: totalFifoPnl,
+						tradePrice: Math.abs(totalProceeds) / totalQuantity, // Recalculate average price
+						notesCodes: firstExec.notesCodes + ' (Merged)'
+					};
+					
+					mergedExecutions.push(mergedExec);
+					console.log(`  🔗 Merged ${orderExecs.length} splits for ${firstExec.symbol}: ${totalQuantity} @ $${mergedExec.tradePrice.toFixed(4)}`);
+				}
+			});
+			
+			return mergedExecutions;
+		}
+
+		function processFIFOMatching(buyExecs, sellExecs, symbol) {
+			const trades = [];
+			const openPositions = [...buyExecs]; // Copy array
+			
+			// Process each sell execution
+			sellExecs.forEach(sellExec => {
+				if (sellExec.openClose === 'C' && openPositions.length > 0) {
+					// This is a closing sell - match with oldest buy
+					let remainingToClose = Math.abs(sellExec.quantity);
+					
+					while (remainingToClose > 0 && openPositions.length > 0) {
+						const oldestBuy = openPositions[0];
+						const closeQuantity = Math.min(remainingToClose, oldestBuy.quantity);
+						
+						// Calculate entry price from cost basis if available
+						let entryPrice = oldestBuy.tradePrice;
+						if (oldestBuy.costBasis && oldestBuy.quantity) {
+							entryPrice = Math.abs(oldestBuy.costBasis) / oldestBuy.quantity;
+						}
+						
+						// Use P&L from broker (proportional for partial closes)
+						const pnlProportion = closeQuantity / Math.abs(sellExec.quantity);
+						const tradePnl = sellExec.fifoPnl * pnlProportion;
+						
+						// Determine exit type
+						const exitType = sellExec.orderType.includes('STP') ? 'Stop Loss' : 
+									   sellExec.orderType.includes('LMT') ? 'Limit' : 'Market';
+						
+						// Create closed trade
+						const trade = {
+							id: Date.now() + Math.random(),
+							symbol: symbol,
+							entryDate: convertDateFormat(oldestBuy.tradeDate),
+							entryPrice: parseFloat(entryPrice.toFixed(4)),
+							quantity: closeQuantity,
+							positionType: 'Long',
+							entryType: 'IBKR Import',
+							initialStop: 0, // User can fill later
+							currentStop: sellExec.orderType.includes('STP') ? sellExec.tradePrice : 0,
+							limitPrice: sellExec.orderType.includes('LMT') ? sellExec.tradePrice : null,
+							exitDate: convertDateFormat(sellExec.tradeDate),
+							exitPrice: parseFloat(sellExec.tradePrice.toFixed(4)),
+							fees: (oldestBuy.commission * closeQuantity / oldestBuy.quantity) + 
+								  (sellExec.commission * pnlProportion),
+							notes: `FIFO: ${oldestBuy.ibOrderId}→${sellExec.ibOrderId} | ${exitType}`,
+							externalTradeId: sellExec.tradeId,
+							status: 'Closed',
+							importSource: 'IBKR'
+						};
+						
+						trades.push(trade);
+						console.log(`  ✅ Closed: ${closeQuantity} @ $${entryPrice.toFixed(3)} → $${sellExec.tradePrice.toFixed(3)} = $${tradePnl.toFixed(2)}`);
+						
+						// Update remaining quantities
+						oldestBuy.quantity -= closeQuantity;
+						if (oldestBuy.quantity === 0) {
+							openPositions.shift();
+						}
+						
+						remainingToClose -= closeQuantity;
+					}
+				} else if (sellExec.openClose === 'C' && sellExec.fifoPnl !== 0) {
+					// Partial trade - we only have the closing part
+					let entryPrice = 0;
+					if (sellExec.costBasis && sellExec.quantity) {
+						entryPrice = Math.abs(sellExec.costBasis) / Math.abs(sellExec.quantity);
+					}
+					
+					const exitType = sellExec.orderType.includes('STP') ? 'Stop Loss' : 
+								   sellExec.orderType.includes('LMT') ? 'Limit' : 'Market';
+					
+					const trade = {
+						id: Date.now() + Math.random(),
+						symbol: symbol,
+						entryDate: convertDateFormat(sellExec.tradeDate), // Best guess
+						entryPrice: parseFloat(entryPrice.toFixed(4)),
+						quantity: Math.abs(sellExec.quantity),
+						positionType: 'Long',
+						entryType: 'IBKR Import',
+						initialStop: 0,
+						currentStop: sellExec.orderType.includes('STP') ? sellExec.tradePrice : 0,
+						limitPrice: sellExec.orderType.includes('LMT') ? sellExec.tradePrice : null,
+						exitDate: convertDateFormat(sellExec.tradeDate),
+						exitPrice: parseFloat(sellExec.tradePrice.toFixed(4)),
+						fees: Math.abs(sellExec.commission),
+						notes: `Partial close: ${sellExec.ibOrderId} | ${exitType} | Review needed`,
+						externalTradeId: sellExec.tradeId,
+						status: 'Review', // Needs user verification
+						importSource: 'IBKR'
+					};
+					
+					trades.push(trade);
+					console.log(`  ⚠️ Partial: ${trade.quantity} @ $${entryPrice.toFixed(3)} → $${sellExec.tradePrice.toFixed(3)} = $${sellExec.fifoPnl.toFixed(2)} (Review)`);
+				}
+			});
+			
+			// Add remaining open positions
+			openPositions.forEach(buyExec => {
+				if (buyExec.quantity > 0) {
+					let entryPrice = buyExec.tradePrice;
+					if (buyExec.costBasis && buyExec.quantity) {
+						entryPrice = Math.abs(buyExec.costBasis) / buyExec.quantity;
+					}
+					
+					const trade = {
+						id: Date.now() + Math.random(),
+						symbol: symbol,
+						entryDate: convertDateFormat(buyExec.tradeDate),
+						entryPrice: parseFloat(entryPrice.toFixed(4)),
+						quantity: buyExec.quantity,
+						positionType: 'Long',
+						entryType: 'IBKR Import',
+						initialStop: 0,
+						currentStop: 0,
+						limitPrice: null,
+						exitDate: null,
+						exitPrice: null,
+						fees: buyExec.commission,
+						notes: `Open: ${buyExec.ibOrderId} | ${buyExec.orderType}`,
+						externalTradeId: buyExec.tradeId,
+						status: 'Open',
+						importSource: 'IBKR'
+					};
+					
+					trades.push(trade);
+					console.log(`  🟡 Open: ${buyExec.quantity} @ $${entryPrice.toFixed(3)}`);
+				}
+			});
+			
+			return trades;
+		}
+
+		function checkForDuplicates(newTrades) {
+			const uniqueTrades = [];
+			
+			newTrades.forEach(newTrade => {
+				// Check if already exists
+				const isDuplicate = trades.some(existingTrade => {
+					// First check external ID
+					if (newTrade.externalTradeId && existingTrade.externalTradeId) {
+						return newTrade.externalTradeId === existingTrade.externalTradeId;
+					}
+					
+					// Then check manual combination
+					return existingTrade.symbol === newTrade.symbol &&
+						   existingTrade.entryDate === newTrade.entryDate &&
+						   existingTrade.quantity === newTrade.quantity &&
+						   Math.abs(existingTrade.entryPrice - newTrade.entryPrice) < 0.01;
+				});
+				
+				if (!isDuplicate) {
+					uniqueTrades.push(newTrade);
+				} else {
+					console.log(`  🚫 Duplicate skipped: ${newTrade.symbol} ${newTrade.quantity} @ $${newTrade.entryPrice}`);
+				}
+			});
+			
+			return uniqueTrades;
+		}
+
+////==================================================================
+
 
 		function processPerfectFIFO(executions) {
 			console.log('\n🎯 Processing Perfect FIFO: Logic + Broker P&L...');
