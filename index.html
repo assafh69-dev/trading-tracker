@@ -878,7 +878,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות v2.2</button>
+			<button class="tab" onclick="showTab(event, 'about')">אודות v2.3</button>
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -2991,31 +2991,28 @@
 
 		function processFIFOMatching(buyExecs, sellExecs, symbol) {
 			const trades = [];
-			const openPositions = [...buyExecs]; // Copy array
+			const availableBuys = [...buyExecs]; // Copy for manipulation
+			
+			console.log(`\n🔍 Processing ${symbol}: ${buyExecs.length} buys, ${sellExecs.length} sells`);
 			
 			// Process each sell execution
 			sellExecs.forEach(sellExec => {
 				if (sellExec.openClose === 'C') {
-					// This is a closing sell - match with oldest valid buy
-					let remainingToClose = Math.abs(sellExec.quantity);
+					console.log(`  📉 Processing SELL: ${Math.abs(sellExec.quantity)} @ $${sellExec.tradePrice} on ${sellExec.dateTime}`);
 					
-					// FIXED: Only match with buys that happened BEFORE this sell
-					const validOpenPositions = openPositions.filter(buyExec => 
+					// Find matching buy executions that happened BEFORE this sell
+					const matchingBuys = availableBuys.filter(buyExec => 
 						buyExec.dateTime < sellExec.dateTime // Buy must be before sell
 					);
 					
-					if (validOpenPositions.length === 0) {
-						// No valid buys found - this is a partial trade (sell only)
-						console.log(`  ⚠️ Partial trade detected: ${sellExec.symbol} SELL without prior BUY`);
+					if (matchingBuys.length === 0) {
+						// No prior buys found - this is a partial trade
+						console.log(`    ⚠️ No prior buys found - creating partial trade`);
 						
-						// Calculate entry price from cost basis with fixed formula
 						let entryPrice = 0;
 						if (sellExec.costBasis && sellExec.quantity) {
 							entryPrice = (Math.abs(sellExec.costBasis) - Math.abs(sellExec.commission)) / Math.abs(sellExec.quantity);
 						}
-						
-						const exitType = sellExec.orderType.includes('STP') ? 'Stop Loss' : 
-									   sellExec.orderType.includes('LMT') ? 'Limit' : 'Market';
 						
 						const trade = {
 							id: Date.now() + Math.random(),
@@ -3031,37 +3028,48 @@
 							exitDate: convertDateFormat(sellExec.tradeDate),
 							exitPrice: parseFloat(sellExec.tradePrice.toFixed(4)),
 							fees: Math.abs(sellExec.commission),
-							notes: `Partial close: ${sellExec.ibOrderId} | Review needed`,
+							notes: `Partial: ${sellExec.ibOrderId} | Review needed`,
 							externalTradeId: sellExec.tradeId,
 							status: 'Review',
 							importSource: 'IBKR'
 						};
 						
 						trades.push(trade);
-						console.log(`  ⚠️ Partial: ${trade.quantity} @ $${entryPrice.toFixed(3)} → $${sellExec.tradePrice.toFixed(3)} = $${sellExec.fifoPnl.toFixed(2)} (Review)`);
-						return; // Skip to next sell
+						console.log(`    ✅ Partial trade created: $${entryPrice.toFixed(2)} → $${sellExec.tradePrice.toFixed(2)}`);
+						return;
 					}
 					
-					// Continue with normal FIFO matching using validOpenPositions
-					while (remainingToClose > 0 && validOpenPositions.length > 0) {
-						const oldestBuy = validOpenPositions[0];
-						const closeQuantity = Math.min(remainingToClose, oldestBuy.quantity);
+					// Sort matching buys by date (oldest first for FIFO)
+					matchingBuys.sort((a, b) => a.dateTime.localeCompare(b.dateTime));
+					
+					let remainingToSell = Math.abs(sellExec.quantity);
+					console.log(`    🎯 Found ${matchingBuys.length} prior buys, need to sell ${remainingToSell}`);
+					
+					// Match sells to buys using FIFO
+					for (let i = 0; i < matchingBuys.length && remainingToSell > 0; i++) {
+						const buyExec = matchingBuys[i];
 						
-						// Use P&L from broker (proportional for partial closes)
-						const pnlProportion = closeQuantity / Math.abs(sellExec.quantity);
+						// Check if this buy still has available quantity
+						const availableQty = buyExec.quantity || 0;
+						if (availableQty <= 0) continue;
+						
+						const matchQty = Math.min(remainingToSell, availableQty);
+						console.log(`    🔗 Matching ${matchQty} from buy ${buyExec.dateTime} (${availableQty} available)`);
+						
+						// Calculate proportional P&L from broker
+						const pnlProportion = matchQty / Math.abs(sellExec.quantity);
 						const tradePnl = sellExec.fifoPnl * pnlProportion;
 						
-						// Determine exit type
+						// Create completed trade
 						const exitType = sellExec.orderType.includes('STP') ? 'Stop Loss' : 
 									   sellExec.orderType.includes('LMT') ? 'Limit' : 'Market';
 						
-						// Create closed trade
 						const trade = {
 							id: Date.now() + Math.random(),
 							symbol: symbol,
-							entryDate: convertDateFormat(oldestBuy.tradeDate),
-							entryPrice: parseFloat(oldestBuy.tradePrice.toFixed(4)), // Use actual trade price from buy
-							quantity: closeQuantity,
+							entryDate: convertDateFormat(buyExec.tradeDate),
+							entryPrice: parseFloat(buyExec.tradePrice.toFixed(4)),
+							quantity: matchQty,
 							positionType: 'Long',
 							entryType: 'IBKR Import',
 							initialStop: 0,
@@ -3069,39 +3077,36 @@
 							limitPrice: sellExec.orderType.includes('LMT') ? sellExec.tradePrice : null,
 							exitDate: convertDateFormat(sellExec.tradeDate),
 							exitPrice: parseFloat(sellExec.tradePrice.toFixed(4)),
-							fees: (oldestBuy.commission * closeQuantity / oldestBuy.quantity) + 
+							fees: (buyExec.commission * matchQty / buyExec.quantity) + 
 								  (sellExec.commission * pnlProportion),
-							notes: `FIFO: ${oldestBuy.ibOrderId}→${sellExec.ibOrderId} | ${exitType}`,
+							notes: `FIFO: ${buyExec.ibOrderId}→${sellExec.ibOrderId} | ${exitType}`,
 							externalTradeId: sellExec.tradeId,
 							status: 'Closed',
 							importSource: 'IBKR'
 						};
 						
 						trades.push(trade);
-						console.log(`  ✅ Closed: ${closeQuantity} @ $${oldestBuy.tradePrice.toFixed(3)} → $${sellExec.tradePrice.toFixed(3)} = $${tradePnl.toFixed(2)}`);
+						console.log(`    ✅ Created trade: ${matchQty} @ $${buyExec.tradePrice.toFixed(2)} → $${sellExec.tradePrice.toFixed(2)} = $${tradePnl.toFixed(2)}`);
 						
 						// Update remaining quantities
-						oldestBuy.quantity -= closeQuantity;
-						if (oldestBuy.quantity === 0) {
-							const originalIndex = openPositions.indexOf(oldestBuy);
-							if (originalIndex > -1) {
-								openPositions.splice(originalIndex, 1);
-							}
-						}
-						
-						remainingToClose -= closeQuantity;
+						buyExec.quantity -= matchQty;
+						remainingToSell -= matchQty;
+					}
+					
+					if (remainingToSell > 0) {
+						console.log(`    ⚠️ Warning: ${remainingToSell} units could not be matched to prior buys`);
 					}
 				}
 			});
 			
 			// Add remaining open positions
-			openPositions.forEach(buyExec => {
+			availableBuys.forEach(buyExec => {
 				if (buyExec.quantity > 0) {
 					const trade = {
 						id: Date.now() + Math.random(),
 						symbol: symbol,
 						entryDate: convertDateFormat(buyExec.tradeDate),
-						entryPrice: parseFloat(buyExec.tradePrice.toFixed(4)), // Use actual trade price
+						entryPrice: parseFloat(buyExec.tradePrice.toFixed(4)),
 						quantity: buyExec.quantity,
 						positionType: 'Long',
 						entryType: 'IBKR Import',
@@ -3118,10 +3123,11 @@
 					};
 					
 					trades.push(trade);
-					console.log(`  🟡 Open: ${buyExec.quantity} @ $${buyExec.tradePrice.toFixed(3)}`);
+					console.log(`  🟡 Open position: ${buyExec.quantity} @ $${buyExec.tradePrice.toFixed(2)}`);
 				}
 			});
 			
+			console.log(`  ✅ ${symbol} complete: ${trades.length} trades created`);
 			return trades;
 		}
 
