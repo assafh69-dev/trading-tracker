@@ -2995,19 +2995,57 @@
 			
 			// Process each sell execution
 			sellExecs.forEach(sellExec => {
-				if (sellExec.openClose === 'C' && openPositions.length > 0) {
-					// This is a closing sell - match with oldest buy
+				if (sellExec.openClose === 'C') {
+					// This is a closing sell - match with oldest valid buy
 					let remainingToClose = Math.abs(sellExec.quantity);
 					
-					while (remainingToClose > 0 && openPositions.length > 0) {
-						const oldestBuy = openPositions[0];
-						const closeQuantity = Math.min(remainingToClose, oldestBuy.quantity);
+					// FIXED: Only match with buys that happened BEFORE this sell
+					const validOpenPositions = openPositions.filter(buyExec => 
+						buyExec.dateTime < sellExec.dateTime // Buy must be before sell
+					);
+					
+					if (validOpenPositions.length === 0) {
+						// No valid buys found - this is a partial trade (sell only)
+						console.log(`  ⚠️ Partial trade detected: ${sellExec.symbol} SELL without prior BUY`);
 						
-						// Calculate entry price from cost basis if available
-						let entryPrice = oldestBuy.tradePrice;
-						if (oldestBuy.costBasis && oldestBuy.quantity) {
-							entryPrice = Math.abs(oldestBuy.costBasis) / oldestBuy.quantity;
+						// Calculate entry price from cost basis with fixed formula
+						let entryPrice = 0;
+						if (sellExec.costBasis && sellExec.quantity) {
+							entryPrice = (Math.abs(sellExec.costBasis) - Math.abs(sellExec.commission)) / Math.abs(sellExec.quantity);
 						}
+						
+						const exitType = sellExec.orderType.includes('STP') ? 'Stop Loss' : 
+									   sellExec.orderType.includes('LMT') ? 'Limit' : 'Market';
+						
+						const trade = {
+							id: Date.now() + Math.random(),
+							symbol: symbol,
+							entryDate: convertDateFormat(sellExec.tradeDate),
+							entryPrice: parseFloat(entryPrice.toFixed(4)),
+							quantity: Math.abs(sellExec.quantity),
+							positionType: 'Long',
+							entryType: 'IBKR Import',
+							initialStop: 0,
+							currentStop: sellExec.orderType.includes('STP') ? sellExec.tradePrice : 0,
+							limitPrice: sellExec.orderType.includes('LMT') ? sellExec.tradePrice : null,
+							exitDate: convertDateFormat(sellExec.tradeDate),
+							exitPrice: parseFloat(sellExec.tradePrice.toFixed(4)),
+							fees: Math.abs(sellExec.commission),
+							notes: `Partial close: ${sellExec.ibOrderId} | Review needed`,
+							externalTradeId: sellExec.tradeId,
+							status: 'Review',
+							importSource: 'IBKR'
+						};
+						
+						trades.push(trade);
+						console.log(`  ⚠️ Partial: ${trade.quantity} @ $${entryPrice.toFixed(3)} → $${sellExec.tradePrice.toFixed(3)} = $${sellExec.fifoPnl.toFixed(2)} (Review)`);
+						return; // Skip to next sell
+					}
+					
+					// Continue with normal FIFO matching using validOpenPositions
+					while (remainingToClose > 0 && validOpenPositions.length > 0) {
+						const oldestBuy = validOpenPositions[0];
+						const closeQuantity = Math.min(remainingToClose, oldestBuy.quantity);
 						
 						// Use P&L from broker (proportional for partial closes)
 						const pnlProportion = closeQuantity / Math.abs(sellExec.quantity);
@@ -3022,11 +3060,11 @@
 							id: Date.now() + Math.random(),
 							symbol: symbol,
 							entryDate: convertDateFormat(oldestBuy.tradeDate),
-							entryPrice: parseFloat(entryPrice.toFixed(4)),
+							entryPrice: parseFloat(oldestBuy.tradePrice.toFixed(4)), // Use actual trade price from buy
 							quantity: closeQuantity,
 							positionType: 'Long',
 							entryType: 'IBKR Import',
-							initialStop: 0, // User can fill later
+							initialStop: 0,
 							currentStop: sellExec.orderType.includes('STP') ? sellExec.tradePrice : 0,
 							limitPrice: sellExec.orderType.includes('LMT') ? sellExec.tradePrice : null,
 							exitDate: convertDateFormat(sellExec.tradeDate),
@@ -3040,64 +3078,30 @@
 						};
 						
 						trades.push(trade);
-						console.log(`  ✅ Closed: ${closeQuantity} @ $${entryPrice.toFixed(3)} → $${sellExec.tradePrice.toFixed(3)} = $${tradePnl.toFixed(2)}`);
+						console.log(`  ✅ Closed: ${closeQuantity} @ $${oldestBuy.tradePrice.toFixed(3)} → $${sellExec.tradePrice.toFixed(3)} = $${tradePnl.toFixed(2)}`);
 						
 						// Update remaining quantities
 						oldestBuy.quantity -= closeQuantity;
 						if (oldestBuy.quantity === 0) {
-							openPositions.shift();
+							const originalIndex = openPositions.indexOf(oldestBuy);
+							if (originalIndex > -1) {
+								openPositions.splice(originalIndex, 1);
+							}
 						}
 						
 						remainingToClose -= closeQuantity;
 					}
-				} else if (sellExec.openClose === 'C' && sellExec.fifoPnl !== 0) {
-					// Partial trade - we only have the closing part
-					let entryPrice = 0;
-					if (sellExec.costBasis && sellExec.quantity) {
-						entryPrice = Math.abs(sellExec.costBasis) / Math.abs(sellExec.quantity);
-					}
-					
-					const exitType = sellExec.orderType.includes('STP') ? 'Stop Loss' : 
-								   sellExec.orderType.includes('LMT') ? 'Limit' : 'Market';
-					
-					const trade = {
-						id: Date.now() + Math.random(),
-						symbol: symbol,
-						entryDate: convertDateFormat(sellExec.tradeDate), // Best guess
-						entryPrice: parseFloat(entryPrice.toFixed(4)),
-						quantity: Math.abs(sellExec.quantity),
-						positionType: 'Long',
-						entryType: 'IBKR Import',
-						initialStop: 0,
-						currentStop: sellExec.orderType.includes('STP') ? sellExec.tradePrice : 0,
-						limitPrice: sellExec.orderType.includes('LMT') ? sellExec.tradePrice : null,
-						exitDate: convertDateFormat(sellExec.tradeDate),
-						exitPrice: parseFloat(sellExec.tradePrice.toFixed(4)),
-						fees: Math.abs(sellExec.commission),
-						notes: `Partial close: ${sellExec.ibOrderId} | ${exitType} | Review needed`,
-						externalTradeId: sellExec.tradeId,
-						status: 'Review', // Needs user verification
-						importSource: 'IBKR'
-					};
-					
-					trades.push(trade);
-					console.log(`  ⚠️ Partial: ${trade.quantity} @ $${entryPrice.toFixed(3)} → $${sellExec.tradePrice.toFixed(3)} = $${sellExec.fifoPnl.toFixed(2)} (Review)`);
 				}
 			});
 			
 			// Add remaining open positions
 			openPositions.forEach(buyExec => {
 				if (buyExec.quantity > 0) {
-					let entryPrice = buyExec.tradePrice;
-					if (buyExec.costBasis && buyExec.quantity) {
-						entryPrice = Math.abs(buyExec.costBasis) / buyExec.quantity;
-					}
-					
 					const trade = {
 						id: Date.now() + Math.random(),
 						symbol: symbol,
 						entryDate: convertDateFormat(buyExec.tradeDate),
-						entryPrice: parseFloat(entryPrice.toFixed(4)),
+						entryPrice: parseFloat(buyExec.tradePrice.toFixed(4)), // Use actual trade price
 						quantity: buyExec.quantity,
 						positionType: 'Long',
 						entryType: 'IBKR Import',
@@ -3114,7 +3118,7 @@
 					};
 					
 					trades.push(trade);
-					console.log(`  🟡 Open: ${buyExec.quantity} @ $${entryPrice.toFixed(3)}`);
+					console.log(`  🟡 Open: ${buyExec.quantity} @ $${buyExec.tradePrice.toFixed(3)}`);
 				}
 			});
 			
