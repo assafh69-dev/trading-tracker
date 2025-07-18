@@ -878,7 +878,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות v2.5</button>
+			<button class="tab" onclick="showTab(event, 'about')">אודות v2.6</button>
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -2782,7 +2782,7 @@
 					// Only import BUY orders (entries) and ignore SELL orders for now
 					if (transactionType.trim() === 'Buy') {
 						const trade = {
-							id: Date.now() + Math.random(),
+							id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 							symbol: symbol.toUpperCase().trim(),
 							entryDate: date,
 							entryPrice: cleanPrice,
@@ -3016,7 +3016,7 @@
 						}
 						
 						const trade = {
-							id: Date.now() + Math.random(),
+							id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 							symbol: symbol,
 							entryDate: convertDateFormat(sellExec.tradeDate),
 							entryPrice: parseFloat(entryPrice.toFixed(4)),
@@ -3066,7 +3066,7 @@
 									   sellExec.orderType.includes('LMT') ? 'Limit' : 'Market';
 						
 						const trade = {
-							id: Date.now() + Math.random(),
+							id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 							symbol: symbol,
 							entryDate: convertDateFromNumber(buyExec.tradeDate),
 							entryPrice: parseFloat(buyExec.tradePrice.toFixed(4)),
@@ -3104,7 +3104,7 @@
 			availableBuys.forEach(buyExec => {
 				if (buyExec.quantity > 0) {
 					const trade = {
-						id: Date.now() + Math.random(),
+						id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 						symbol: symbol,
 						entryDate: convertDateFormat(buyExec.tradeDate),
 						entryPrice: parseFloat(buyExec.tradePrice.toFixed(4)),
@@ -3264,7 +3264,7 @@
 						
 						// Create completed trade using broker P&L
 						const trade = {
-							id: Date.now() + Math.random(),
+							id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 							symbol: symbol,
 							entryDate: convertDateFormat(oldestBuy.date),
 							entryPrice: parseFloat(oldestBuy.price.toFixed(4)),
@@ -3304,7 +3304,7 @@
 						const unrealizedPnl = 0; // Will be calculated by system using current market price
 						
 						const trade = {
-							id: Date.now() + Math.random(),
+							id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 							symbol: symbol,
 							entryDate: convertDateFormat(buyOrder.date),
 							entryPrice: parseFloat(buyOrder.price.toFixed(4)),
@@ -3349,7 +3349,7 @@
 				if (exec.buySell === 'BUY') {
 					// Create open trade for each BUY
 					const trade = {
-						id: Date.now() + Math.random(),
+						id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 						symbol: exec.symbol,
 						entryDate: convertDateFormat(exec.tradeDate),
 						entryPrice: parseFloat(exec.tradePrice.toFixed(4)),
@@ -3374,7 +3374,7 @@
 								   exec.orderType.includes('LMT') ? 'Limit' : 'Manual';
 					
 					const trade = {
-						id: Date.now() + Math.random(),
+						id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 						symbol: exec.symbol,
 						entryDate: convertDateFormat(exec.tradeDate), // Same date for now
 						entryPrice: 0, // Will be calculated from broker data
@@ -3490,7 +3490,7 @@
 											   sellOrder.orderType.includes('LMT') ? 'Limit' : 'Manual';
 								
 								const trade = {
-									id: Date.now() + Math.random(),
+									id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 									symbol: symbol,
 									entryDate: convertDateFormat(oldestBuy.date),
 									entryPrice: parseFloat(oldestBuy.price.toFixed(4)),
@@ -3523,7 +3523,7 @@
 						openPositions.forEach(buyOrder => {
 							if (buyOrder.quantity > 0) {
 								const trade = {
-									id: Date.now() + Math.random(),
+									id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 									symbol: symbol,
 									entryDate: convertDateFormat(buyOrder.date),
 									entryPrice: parseFloat(buyOrder.price.toFixed(4)),
