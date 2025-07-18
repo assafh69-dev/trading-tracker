@@ -878,7 +878,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות v2.4</button>
+			<button class="tab" onclick="showTab(event, 'about')">אודות v2.5</button>
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -2058,7 +2058,6 @@
 					<td><span class="${isClosed ? 'status-closed' : 'status-open'}">${isClosed ? 'סגור' : 'פתוח'}</span></td>
 					<td>${trade.symbol}</td>
 					<td>${formatDisplayDate(trade.entryDate)}</td>
-					<td>${trade.exitDate ? formatDisplayDate(trade.exitDate) : (isClosed ? '-' : 'עדכן')}</td>
 					
 					<!-- Entry Price - EDITABLE -->
 					<td class="editable-cell">
