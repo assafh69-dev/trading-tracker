@@ -878,7 +878,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות v2.3</button>
+			<button class="tab" onclick="showTab(event, 'about')">אודות v2.4</button>
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -2057,7 +2057,8 @@
 				row.innerHTML = `
 					<td><span class="${isClosed ? 'status-closed' : 'status-open'}">${isClosed ? 'סגור' : 'פתוח'}</span></td>
 					<td>${trade.symbol}</td>
-					<td>${trade.entryDate}</td>
+					<td>${formatDisplayDate(trade.entryDate)}</td>
+					<td>${trade.exitDate ? formatDisplayDate(trade.exitDate) : (isClosed ? '-' : 'עדכן')}</td>
 					
 					<!-- Entry Price - EDITABLE -->
 					<td class="editable-cell">
@@ -3067,7 +3068,7 @@
 						const trade = {
 							id: Date.now() + Math.random(),
 							symbol: symbol,
-							entryDate: convertDateFormat(buyExec.tradeDate),
+							entryDate: convertDateFromNumber(buyExec.tradeDate),
 							entryPrice: parseFloat(buyExec.tradePrice.toFixed(4)),
 							quantity: matchQty,
 							positionType: 'Long',
@@ -3075,7 +3076,7 @@
 							initialStop: 0,
 							currentStop: sellExec.orderType.includes('STP') ? sellExec.tradePrice : 0,
 							limitPrice: sellExec.orderType.includes('LMT') ? sellExec.tradePrice : null,
-							exitDate: convertDateFormat(sellExec.tradeDate),
+							exitDate: convertDateFromNumber(sellExec.tradeDate),
 							exitPrice: parseFloat(sellExec.tradePrice.toFixed(4)),
 							fees: (buyExec.commission * matchQty / buyExec.quantity) + 
 								  (sellExec.commission * pnlProportion),
@@ -3330,7 +3331,7 @@
 			return allTrades;
 		}
 
-		function convertDateFormat(dateNum) {
+		function convertDateFromNumber(dateNum) {
 			const dateStr = dateNum.toString();
 			if (dateStr.length === 8) {
 				return `${dateStr.substr(0,4)}-${dateStr.substr(4,2)}-${dateStr.substr(6,2)}`;
@@ -3711,6 +3712,37 @@
 			return dateStr;
 		}
 
+		function formatDisplayDate(dateStr) {
+			if (!dateStr) return '';
+			
+			// Convert YYYY-MM-DD to DD-MM-YYYY
+			const parts = dateStr.split('-');
+			if (parts.length === 3) {
+				return `${parts[2]}-${parts[1]}-${parts[0]}`;
+			}
+			return dateStr; // Return as-is if format is unexpected
+		}
+		
+		function formatDisplayDate(dateStr) {
+			if (!dateStr) return '';
+			
+			// Handle both formats: YYYY-MM-DD or YYYYMMDD
+			let formattedDate = dateStr;
+			
+			// If it's a number like 20250521, convert first
+			if (/^\d{8}$/.test(dateStr)) {
+				formattedDate = convertDateFromNumber(dateStr);
+			}
+			
+			// Convert YYYY-MM-DD to DD-MM-YYYY
+			const parts = formattedDate.split('-');
+			if (parts.length === 3) {
+				return `${parts[2]}-${parts[1]}-${parts[0]}`;
+			}
+			return formattedDate;
+		}
+
+		
 	</script>
 </body>	
 </html>
