@@ -2086,9 +2086,10 @@
 					</td>
 					
 					<!-- Limit (already editable) -->
+					<!-- Current Stop - ALTERNATIVE -->
 					<td class="editable-cell">
-						<input type="number" step="0.01" value="${trade.limitPrice ? trade.limitPrice.toFixed(2) : ''}" 
-							   placeholder="לימיט" onchange="updateTradeField(${trade.id}, 'limitPrice', this.value)" ${isClosed ? 'disabled' : ''}>
+						<input type="number" step="0.01" value="${trade.currentStop !== null && trade.currentStop !== undefined ? trade.currentStop.toFixed(2) : trade.initialStop.toFixed(2)}" 
+							   onchange="updateTradeField(${trade.id}, 'currentStop', this.value)" ${isClosed ? 'disabled' : ''}>
 					</td>
 					
 					<td>${trade.exitPrice ? '$' + trade.exitPrice.toFixed(2) : (isClosed ? '-' : 'עדכן')}</td>
