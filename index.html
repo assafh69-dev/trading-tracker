@@ -878,7 +878,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות v2.7</button>
+			<button class="tab" onclick="showTab(event, 'about')">אודות v2.6</button>
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -1562,13 +1562,23 @@
 			// Partial close
 			else {
 				// Create new trade for sold portion
+				const timestamp = new Date().toISOString();
+				const partialTradeData = {
+					symbol: currentTradeForClose.symbol,
+					entryDate: currentTradeForClose.entryDate,
+					quantity: closeQuantity,
+					entryPrice: currentTradeForClose.entryPrice
+				};
+
 				const soldTrade = {
 					...currentTradeForClose,
-					id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
+					id: createTradeId(partialTradeData, timestamp),
 					quantity: closeQuantity,
 					exitDate: new Date().toISOString().split('T')[0],
 					exitPrice: closePrice,
-					notes: currentTradeForClose.notes + ` (מכירה חלקית)`
+					notes: currentTradeForClose.notes + ` (מכירה חלקית)`,
+					createdAt: timestamp,
+					lastModified: timestamp
 				};
 				
 				// Update original trade
@@ -1608,7 +1618,7 @@
 				trades = values
 					.filter(row => row[1] && row[1].trim() && row[1] !== '')
 					.map((row, index) => ({
-						id: parseInt(row[0]) || (Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000)),
+						id: row[0] || createTradeId({symbol: row[1], entryDate: row[2], quantity: row[4], entryPrice: row[3]}, new Date().toISOString()),
 						symbol: row[1] || '',
 						entryDate: row[2] || '',
 						entryPrice: parseFloat(row[3]) || 0,
@@ -2293,6 +2303,17 @@
             }, 0);
         }
 
+		function createTradeId(tradeData, timestamp) {
+			// Create clean timestamp: YYYYMMDDHHMMSS
+			const cleanTimestamp = timestamp.replace(/[^0-9]/g, '').slice(0, 14);
+			
+			// Create deterministic ID
+			const baseId = `${tradeData.symbol}-${tradeData.entryDate}-${tradeData.quantity}-${cleanTimestamp}`;
+			
+			// Clean and return
+			return baseId.replace(/[^a-zA-Z0-9-]/g, '');
+		}
+
         function addTrade() {
 		
 			// בדיקת ולידציות תחילה
@@ -2326,8 +2347,17 @@
                 return;
             }
 
+			// Create timestamp-based deterministic ID
+			const timestamp = new Date().toISOString();
+			const tradeData = {
+				symbol: symbol.toUpperCase(),
+				entryDate,
+				quantity,
+				entryPrice
+			};
+
 			const trade = {
-				id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
+				id: createTradeId(tradeData, timestamp),
 				symbol: symbol.toUpperCase(),
 				entryDate,
 				entryPrice,
@@ -2341,11 +2371,13 @@
 				exitPrice: exitPrice,
 				fees: calculatedFees,
 				notes,
-				
+
 				// NEW FIELDS:
-				externalTradeId: null, // TradeID from broker
-				status: 'Open', // 'Open', 'Closed', 'Review'
-				importSource: 'Manual' // 'Manual', 'IBKR', etc.
+				externalTradeId: null,
+				status: 'Open',
+				importSource: 'Manual',
+				createdAt: timestamp, // ← NEW!
+				lastModified: timestamp // ← NEW!
 			};
 
             trades.push(trade);
