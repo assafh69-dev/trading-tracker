@@ -878,7 +878,7 @@
 			<button class="tab" onclick="showTab(event, 'portfolio')">פורטפוליו</button>
 			<button class="tab" onclick="showTab(event, 'stats')">סטטיסטיקות</button>
 			<button class="tab" onclick="showTab(event, 'export')">ייצוא</button>
-			<button class="tab" onclick="showTab(event, 'about')">אודות v2.6</button>
+			<button class="tab" onclick="showTab(event, 'about')">אודות v2.7</button>
 		</div>
 
         <div id="trades" class="tab-content active">
@@ -1564,7 +1564,7 @@
 				// Create new trade for sold portion
 				const soldTrade = {
 					...currentTradeForClose,
-					id: Date.now(),
+					id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 					quantity: closeQuantity,
 					exitDate: new Date().toISOString().split('T')[0],
 					exitPrice: closePrice,
@@ -1606,9 +1606,9 @@
 				
 				// Convert back to trades array - FIXED ORDER
 				trades = values
-					.filter(row => row[1] && row[1].trim() && row[1] !== '') // Only rows with valid symbol
-					.map(row => ({
-						id: parseInt(row[0]) || Date.now() + Math.random(),
+					.filter(row => row[1] && row[1].trim() && row[1] !== '')
+					.map((row, index) => ({
+						id: parseInt(row[0]) || (Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000)),
 						symbol: row[1] || '',
 						entryDate: row[2] || '',
 						entryPrice: parseFloat(row[3]) || 0,
@@ -2078,18 +2078,17 @@
 						<input type="number" step="0.01" value="${trade.initialStop.toFixed(2)}" 
 							   onchange="updateTradeField(${trade.id}, 'initialStop', this.value)" ${isClosed ? 'disabled' : ''}>
 					</td>
-					
-					<!-- Current Stop (already editable) -->
-					<td class="editable-cell">
-						<input type="number" step="0.01" value="${(trade.currentStop || trade.initialStop).toFixed(2)}" 
-							   onchange="updateTradeField(${trade.id}, 'currentStop', this.value)" ${isClosed ? 'disabled' : ''}>
-					</td>
-					
-					<!-- Limit (already editable) -->
-					<!-- Current Stop - ALTERNATIVE -->
+								
+					<!-- Current Stop - FIXED -->
 					<td class="editable-cell">
 						<input type="number" step="0.01" value="${trade.currentStop !== null && trade.currentStop !== undefined ? trade.currentStop.toFixed(2) : trade.initialStop.toFixed(2)}" 
 							   onchange="updateTradeField(${trade.id}, 'currentStop', this.value)" ${isClosed ? 'disabled' : ''}>
+					</td>
+
+					<!-- Limit Price - RESTORED -->
+					<td class="editable-cell">
+						<input type="number" step="0.01" value="${trade.limitPrice ? trade.limitPrice.toFixed(2) : ''}" 
+							   placeholder="לימיט" onchange="updateTradeField(${trade.id}, 'limitPrice', this.value)" ${isClosed ? 'disabled' : ''}>
 					</td>
 					
 					<td>${trade.exitPrice ? '$' + trade.exitPrice.toFixed(2) : (isClosed ? '-' : 'עדכן')}</td>
@@ -2328,7 +2327,7 @@
             }
 
 			const trade = {
-				id: Date.now(),
+				id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 100000),
 				symbol: symbol.toUpperCase(),
 				entryDate,
 				entryPrice,
